@@ -15,14 +15,18 @@
   const state = {
     page: getPageFromHash(),
     navigation: {
-      view: "component",
       selectedLocation: "room-a102",
-      appliedName: "",
+      editorComponentId: null,
+    },
+    deviceFunctions: {
+      selectedCabinetId: "cab-001",
+      appliedKeyword: "",
       appliedType: "all",
+      sortField: null,
+      sortDirection: "asc",
       page: 1,
       pageSize: 10,
-      editorComponentId: null,
-      editorReturnView: "component",
+      selected: new Set(),
     },
     devices: {
       filterField: "remark",
@@ -32,7 +36,6 @@
       page: 1,
       pageSize: 10,
       selected: new Set(),
-      cabinetMenuOpen: false,
     },
     history: {
       appliedType: "all",
@@ -40,23 +43,27 @@
       page: 1,
       pageSize: 10,
     },
-    openTree: null,
   };
 
-  let navigationFilterTimer = null;
+  let deviceFunctionFilterTimer = null;
   let deviceFilterTimer = null;
 
   const pageNames = {
     overview: "首页",
     navigation: "导航",
+    "device-functions": "设备功能",
     history: "历史记录",
     devices: "设备管理",
   };
 
   function getPageFromHash() {
     const value = window.location.hash.replace(/^#/, "");
-    const validPages = ["overview", "navigation", "history", "devices"];
-    return validPages.includes(value) ? value : "navigation";
+    if (value === "cabinet-devices") {
+      window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}#device-functions`);
+      return "device-functions";
+    }
+    const validPages = ["overview", "navigation", "device-functions", "history", "devices"];
+    return validPages.includes(value) ? value : "device-functions";
   }
 
   function escapeHtml(value) {
@@ -70,17 +77,6 @@
 
   function icon(name) {
     return `<svg aria-hidden="true"><use href="#i-${name}"></use></svg>`;
-  }
-
-  function locationLabel(id) {
-    if (id === "all") return "全部页面";
-    const building = model.locations.find((item) => item.id === id);
-    if (building) return building.name;
-    for (const item of model.locations) {
-      const room = item.rooms.find((candidate) => candidate.id === id);
-      if (room) return `${item.name} / ${room.name}`;
-    }
-    return "全部页面";
   }
 
   function roomAreaOptions(selectedId, includeAll = true) {
@@ -98,50 +94,55 @@
     return options.join("");
   }
 
-  function treeSelectHtml(scope, selectedId) {
-    const isOpen = state.openTree === scope;
-    const nodes = [
-      `<button class="tree-node${selectedId === "all" ? " active" : ""}" type="button" data-action="set-location" data-scope="${scope}" data-location="all">全部页面</button>`,
-    ];
-    for (const building of model.locations) {
-      nodes.push(
-        `<button class="tree-node building${selectedId === building.id ? " active" : ""}" type="button" data-action="set-location" data-scope="${scope}" data-location="${building.id}">⌄ ${escapeHtml(building.name)}</button>`,
-      );
-      for (const room of building.rooms) {
-        nodes.push(
-          `<button class="tree-node room${selectedId === room.id ? " active" : ""}" type="button" data-action="set-location" data-scope="${scope}" data-location="${room.id}">${escapeHtml(room.name)}</button>`,
-        );
-      }
-    }
-    return `
-      <div class="tree-select${isOpen ? " open" : ""}">
-        <button class="tree-select-trigger" type="button" data-action="toggle-tree" data-scope="${scope}">
-          <span title="${escapeHtml(locationLabel(selectedId))}">${escapeHtml(locationLabel(selectedId))}</span>
-        </button>
-        <div class="tree-panel">${nodes.join("")}</div>
-      </div>`;
-  }
-
-  function pageMatchesLocation(roomId, selectedId) {
-    if (selectedId === "all") return true;
-    if (roomId === selectedId) return true;
-    const building = model.locations.find((item) => item.id === selectedId);
-    return Boolean(building?.rooms.some((room) => room.id === roomId));
-  }
-
   function componentTypes() {
     return [...new Set(model.components.map((item) => item.type))].sort((a, b) => a.localeCompare(b, "zh-CN"));
   }
 
-  function filteredNavigationComponents() {
-    const nav = state.navigation;
-    const keyword = nav.appliedName.trim().toLocaleLowerCase("zh-CN");
-    return model.components.filter(
+  function filteredDeviceFunctions() {
+    const view = state.deviceFunctions;
+    const keyword = view.appliedKeyword.trim().toLocaleLowerCase("zh-CN");
+    const filtered = model.components.filter(
       (item) =>
-        pageMatchesLocation(item.roomId, nav.selectedLocation) &&
-        (nav.appliedType === "all" || item.type === nav.appliedType) &&
-        (!keyword || `${item.name} ${item.remark}`.toLocaleLowerCase("zh-CN").includes(keyword)),
+        (view.selectedCabinetId === "unclassified" ? !item.cabinetId : item.cabinetId === view.selectedCabinetId) &&
+        (view.appliedType === "all" || item.type === view.appliedType) &&
+        (!keyword || item.name.toLocaleLowerCase("zh-CN").includes(keyword)),
     );
+    if (!view.sortField) return filtered;
+
+    const sortValues = {
+      name: (item) => item.name,
+      remark: (item) => item.remark,
+      deviceName: (item) => componentDeviceName(item),
+    };
+    const getSortValue = sortValues[view.sortField];
+    if (!getSortValue) return filtered;
+
+    const direction = view.sortDirection === "desc" ? -1 : 1;
+    return filtered
+      .map((item, index) => ({ item, index }))
+      .sort((left, right) => {
+        const comparison = String(getSortValue(left.item) ?? "").localeCompare(String(getSortValue(right.item) ?? ""), "zh-CN", {
+          numeric: true,
+          sensitivity: "base",
+        });
+        return comparison === 0 ? left.index - right.index : comparison * direction;
+      })
+      .map(({ item }) => item);
+  }
+
+  function deviceFunctionSortHeader(label, sortField) {
+    const view = state.deviceFunctions;
+    const active = view.sortField === sortField;
+    const direction = active ? view.sortDirection : null;
+    const ariaSort = direction === "asc" ? "ascending" : direction === "desc" ? "descending" : "none";
+    const nextDirection = active && direction === "asc" ? "降序" : "升序";
+    return `
+      <th aria-sort="${ariaSort}">
+        <button class="sort-button${active ? ` active ${direction}` : ""}" type="button" data-action="sort-device-functions" data-sort-field="${sortField}" aria-label="${label}，点击按${nextDirection}排列" title="按${label}${nextDirection}排列">
+          <span>${label}</span>
+          <span class="sort-glyph" aria-hidden="true"><i class="sort-glyph-up"></i><i class="sort-glyph-down"></i></span>
+        </button>
+      </th>`;
   }
 
   function getComponent(id) {
@@ -323,6 +324,9 @@
       case "navigation":
         app.innerHTML = state.navigation.editorComponentId ? renderComponentEditorPage() : renderNavigationPage();
         break;
+      case "device-functions":
+        app.innerHTML = renderDeviceFunctionPage();
+        break;
       case "devices":
         app.innerHTML = renderDevicePage();
         break;
@@ -337,86 +341,127 @@
   }
 
   function renderNavigationPage() {
-    const nav = state.navigation;
-    const switcher = `
-      <div class="view-switch" aria-label="组件展示方式">
-        <button type="button" class="${nav.view === "component" ? "active" : ""}" data-action="set-nav-view" data-view="component">组件视图</button>
-        <button type="button" class="${nav.view === "list" ? "active" : ""}" data-action="set-nav-view" data-view="list">列表视图</button>
-      </div>`;
+    return `
+      <section class="page component-page">
+        ${renderComponentCanvas()}
+      </section>`;
+  }
 
-    if (nav.view === "component") {
-      return `
-        <section class="page component-page">
-          ${renderComponentCanvas(switcher)}
-        </section>`;
+  function componentLocationPath(component) {
+    const building = model.locations.find((item) => item.rooms.some((room) => room.id === component.roomId));
+    const room = building?.rooms.find((item) => item.id === component.roomId);
+    return [building?.name, room?.name].filter(Boolean).join("→");
+  }
+
+  function componentDeviceName(component) {
+    const suffix = String(component.id).replace(/\D/g, "").padStart(3, "0");
+    return `MDL64-BP-${suffix}`;
+  }
+
+  function renderDeviceFunctionPage() {
+    const view = state.deviceFunctions;
+    const activeCabinets = model.cabinets.filter((item) => item.status === "active");
+    if (view.selectedCabinetId !== "unclassified" && !activeCabinets.some((item) => item.id === view.selectedCabinetId)) {
+      view.selectedCabinetId = activeCabinets[0]?.id ?? "unclassified";
     }
 
-    const filtered = filteredNavigationComponents();
-    const totalPages = Math.max(1, Math.ceil(filtered.length / nav.pageSize));
-    if (nav.page > totalPages) nav.page = totalPages;
-    const pageItems = filtered.slice((nav.page - 1) * nav.pageSize, nav.page * nav.pageSize);
+    const cabinetOptions = [
+      ...activeCabinets.map((cabinet) => ({ id: cabinet.id, name: cabinet.name })),
+      { id: "unclassified", name: "未分类" },
+    ]
+      .map((option) => {
+        const components = model.components.filter((item) => (option.id === "unclassified" ? !item.cabinetId : item.cabinetId === option.id));
+        const online = components.filter((item) => item.deviceStatus === "online").length;
+        return `
+          <button class="cabinet-device-option${view.selectedCabinetId === option.id ? " active" : ""}" type="button" data-action="select-device-function-cabinet" data-cabinet-id="${option.id}" aria-pressed="${view.selectedCabinetId === option.id}">
+            <span>${escapeHtml(option.name)}</span><span class="cabinet-device-option-count">（${online}/${components.length}）</span>
+          </button>`;
+      })
+      .join("");
+
+    const filtered = filteredDeviceFunctions();
+    const totalPages = Math.max(1, Math.ceil(filtered.length / view.pageSize));
+    if (view.page > totalPages) view.page = totalPages;
+    const pageItems = filtered.slice((view.page - 1) * view.pageSize, view.page * view.pageSize);
+    const statusLabels = { online: "在线", offline: "离线", fault: "故障" };
+    const allPageSelected = pageItems.length > 0 && pageItems.every((item) => view.selected.has(item.id));
 
     const rows = pageItems.length
       ? pageItems
-          .map(
-            (item) => `
+          .map((item) => {
+            const cabinet = getCabinet(item.cabinetId);
+            const selected = view.selected.has(item.id);
+            return `
               <tr>
-                <td title="${escapeHtml(`${item.name} ${item.remark}`)}">
-                  <strong>${escapeHtml(item.name)}</strong><span style="color:#9399ad;margin-left:8px">${escapeHtml(item.remark)}</span>
-                </td>
+                <td class="checkbox-cell"><input class="table-checkbox" type="checkbox" data-action="select-device-function" data-id="${item.id}"${selected ? " checked" : ""} aria-label="选择 ${escapeHtml(item.name)}"></td>
+                <td title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</td>
                 <td>${escapeHtml(item.type)}</td>
+                <td><span class="device-status-text ${escapeHtml(item.deviceStatus)}">${statusLabels[item.deviceStatus] ?? "离线"}</span></td>
                 <td>${escapeHtml(item.page)}</td>
-                <td class="action-cell">
-                  <div class="table-action-group">
-                    <button class="action-link" type="button" data-action="open-component-control" data-id="${item.id}">${icon("power")}控制</button>
-                    <button class="action-link" type="button" data-action="edit-component" data-id="${item.id}">${icon("edit")}编辑</button>
-                  </div>
-                </td>
-              </tr>`,
-          )
+                <td class="device-cabinet-cell" title="${escapeHtml(cabinet?.name ?? "")}">${cabinetColorText(cabinet?.name, cabinet)}</td>
+                <td title="${escapeHtml(item.remark)}">${escapeHtml(item.remark)}</td>
+                <td title="${escapeHtml(componentDeviceName(item))}">${escapeHtml(componentDeviceName(item))}</td>
+                <td title="${escapeHtml(componentLocationPath(item))}">${escapeHtml(componentLocationPath(item))}</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td></td>
+              </tr>`;
+          })
           .join("")
-      : `<tr><td colspan="4"><div class="empty-state"><div><strong>没有匹配的组件</strong>请调整所属页面、名称备注或组件类型</div></div></td></tr>`;
+      : `<tr><td colspan="16"><div class="empty-state"><div><strong>没有匹配的设备功能</strong>请调整功能名称或功能类型</div></div></td></tr>`;
 
     return `
-      <section class="page">
-        <div class="page-header navigation-list-header controls-only">
-          <div class="navigation-list-header-actions">
-            <div class="stage-global-controls list-global-controls">
-              <button class="global-control-button open" type="button" data-action="control-all-components" data-control-scope="list" data-value="on"${filtered.length ? "" : " disabled"}>全开</button>
-              <button class="global-control-button close" type="button" data-action="control-all-components" data-control-scope="list" data-value="off"${filtered.length ? "" : " disabled"}>全关</button>
-            </div>
-            ${switcher}
-          </div>
-        </div>
-        <div class="page-panel">
-          <div class="toolbar compact">
-            <div class="toolbar-group">
-              ${treeSelectHtml("navigation", nav.selectedLocation)}
-              <div class="search-field">
-                ${icon("search")}
-                <input id="navKeyword" value="${escapeHtml(nav.appliedName)}" placeholder="搜索名称备注" autocomplete="off" />
-              </div>
-              <div class="field">
-                <select id="navType" aria-label="组件类型">
-                  <option value="all">全部组件类型</option>
-                  ${componentTypes().map((type) => `<option value="${escapeHtml(type)}"${nav.appliedType === type ? " selected" : ""}>${escapeHtml(type)}</option>`).join("")}
+      <section class="page cabinet-device-page device-function-page">
+        <div class="cabinet-device-workbench device-function-workbench">
+          <aside class="cabinet-device-explorer" aria-label="配电箱列表">
+            <div class="cabinet-device-explorer-header">配电箱</div>
+            <div class="cabinet-device-options">${cabinetOptions}</div>
+          </aside>
+          <section class="cabinet-device-stage device-function-stage">
+            <div class="device-function-toolbar">
+              <div class="device-function-filters">
+                <select id="deviceFunctionField" aria-label="搜索字段"><option value="name">功能名称</option></select>
+                <div class="reference-search">
+                  ${icon("search")}
+                  <input id="deviceFunctionKeyword" value="${escapeHtml(view.appliedKeyword)}" placeholder="搜索" autocomplete="off" />
+                </div>
+                <select id="deviceFunctionType" aria-label="功能类型">
+                  <option value="all">所有</option>
+                  ${componentTypes().map((type) => `<option value="${escapeHtml(type)}"${view.appliedType === type ? " selected" : ""}>${escapeHtml(type)}</option>`).join("")}
                 </select>
               </div>
+              <div class="device-function-actions" aria-label="设备功能操作">
+                <button type="button" data-action="device-function-action" data-name="绑定回路">${icon("manage")}绑定回路</button>
+                <button type="button" data-action="device-function-action" data-name="功率">${icon("power")}功率</button>
+                <button type="button" data-action="device-function-action" data-name="测试">${icon("refresh")}测试</button>
+                <button type="button" data-action="device-function-action" data-name="编辑">${icon("edit")}编辑</button>
+                <button type="button" data-action="device-function-action" data-name="移除">${icon("minus")}移除</button>
+                <button type="button" data-action="device-function-action" data-name="标签">${icon("list")}标签</button>
+                <button class="reference-export-button" type="button" data-action="export-device-functions">${icon("export")}导出</button>
+              </div>
             </div>
-          </div>
-          <div class="table-wrap" style="margin-top:18px">
-            <table class="data-table">
-              <colgroup><col style="width:34%"><col style="width:19%"><col style="width:25%"><col style="width:22%"></colgroup>
-              <thead><tr><th>名称备注</th><th>组件类型</th><th>所属页面</th><th>操作</th></tr></thead>
-              <tbody>${rows}</tbody>
-            </table>
-          </div>
-          ${pagerHtml(filtered.length, nav.page, nav.pageSize, "navigation")}
+            <div class="cabinet-device-table-panel">
+              <div class="table-wrap device-function-table-wrap">
+                <table class="data-table cabinet-device-table device-function-table">
+                  <thead><tr>
+                    <th class="checkbox-cell"><input class="table-checkbox" type="checkbox" data-action="select-all-device-functions"${allPageSelected ? " checked" : ""} aria-label="选择本页全部设备功能"></th>
+                    ${deviceFunctionSortHeader("功能名称", "name")}<th>功能类型</th><th>状态</th><th>所属页面</th><th>配电箱</th>${deviceFunctionSortHeader("设备备注", "remark")}${deviceFunctionSortHeader("设备名称", "deviceName")}<th>楼层节点</th><th>功率<br>(W)</th><th>总使用寿命<br>(小时)</th><th>总开合次数<br>(次)</th><th>运行时间<br>(小时)</th><th>已开合次数<br>(次)</th><th>绑定回路数</th><th>描述</th>
+                  </tr></thead>
+                  <tbody>${rows}</tbody>
+                </table>
+              </div>
+              ${pagerHtml(filtered.length, view.page, view.pageSize, "deviceFunctions")}
+            </div>
+          </section>
         </div>
       </section>`;
   }
 
-  function renderComponentCanvas(switcher) {
+  function renderComponentCanvas(switcher = "") {
     const selected = state.navigation.selectedLocation;
     const selectedRoom = model.locations.flatMap((item) => item.rooms).find((item) => item.id === selected) ?? null;
     const selectedBuilding = model.locations.find((item) => item.id === selected || item.rooms.some((room) => room.id === selected)) ?? model.locations[0];
@@ -595,19 +640,6 @@
           .join("")
       : `<tr><td colspan="11"><div class="empty-state"><div><strong>没有匹配的设备</strong>请调整设备备注、型号、IP、设备类型或配电箱</div></div></td></tr>`;
 
-    const cabinetMenu = `
-      <div class="cabinet-action-wrap${view.cabinetMenuOpen ? " open" : ""}">
-        <button class="reference-action-button cabinet-menu-trigger" type="button" data-action="toggle-cabinet-menu">
-          ${icon("cabinet")}<span>配电箱</span><b>⌄</b>
-        </button>
-        <div class="cabinet-action-menu" role="menu" aria-label="配电箱操作">
-          <button type="button" data-action="clear-device-cabinet" role="menuitem"><span class="menu-action-icon clear">${icon("minus")}</span>清除配电箱</button>
-          <button type="button" data-action="add-cabinet" role="menuitem"><span class="menu-action-icon create">${icon("plus")}</span>新建配电箱</button>
-          <button type="button" data-action="manage-cabinets" role="menuitem"><span class="menu-action-icon manage">${icon("manage")}</span>管理配电箱</button>
-          <button type="button" data-action="assign-cabinet" role="menuitem"><span class="menu-action-icon choose">${icon("list")}</span>选择配电箱</button>
-        </div>
-      </div>`;
-
     return `
       <section class="page device-reference-page">
         <div class="page-panel no-padding device-reference-panel">
@@ -632,7 +664,6 @@
             <div class="device-reference-actions">
               <button class="reference-link-button" type="button" data-action="modify-ip">${icon("edit")}修改IP</button>
               <button class="reference-link-button" type="button" data-action="monitor-status">${icon("power")}监测状态</button>
-              ${cabinetMenu}
               <button class="reference-export-button" type="button" data-action="export-devices">${icon("export")}导出</button>
             </div>
           </form>
@@ -724,7 +755,7 @@
   function renderPlaceholderPage(page) {
     return `
       <section class="placeholder-page">
-        <div><strong>${escapeHtml(pageNames[page] ?? "页面")}</strong>本次 Demo 只实现导航、设备管理内的配电箱操作和历史记录。</div>
+        <div><strong>${escapeHtml(pageNames[page] ?? "页面")}</strong>本次 Demo 只实现导航、设备功能配电箱分组、设备管理只读配电箱信息和历史记录。</div>
       </section>`;
   }
 
@@ -750,15 +781,15 @@
       large: true,
       body: `
         <ol class="rules-list">
-          <li><strong>已确认：</strong>导航默认组件视图，组件视图按参考截图使用页面树、页面面包屑、全开/全关和不同类型控制组件。</li>
-          <li><strong>已确认：</strong>列表视图同样保留全开/全关，对当前筛选结果中的全部组件生效；列表每行对应一个组件。</li>
-          <li><strong>已确认：</strong>列表点击“控制”后直接弹出与该组件类型匹配的小组件，在小组件本体内完成开关、调光、空调、窗帘或风机控制。</li>
-          <li><strong>已确认：</strong>列表“编辑”和组件视图右上角编辑入口统一进入完整组件编辑页，可编辑组件信息、所属导航节点并预览样式。</li>
-          <li><strong>已确认：</strong>设备管理沿用参考页面，新增一个“配电箱”按钮、配电箱下拉筛选，并在列表最后增加“配电箱”列；下拉选择后自动筛选，设备导出包含配电箱字段；配电箱名称文字使用其配置颜色，不增加颜色图标。</li>
-          <li><strong>已确认：</strong>配电箱按钮复用标签式 UI，提供清除、新建、管理和选择配电箱；设备直接关联配电箱，设备功能不继承。</li>
-          <li><strong>已确认：</strong>新建配电箱使用行内软盘图标保存，底部仅保留关闭；管理列表提供编辑、删除、新增图标，新增会在列表末尾追加可编辑行。</li>
+          <li><strong>已确认：</strong>导航只保留组件视图，按参考截图使用页面树、页面面包屑、全开/全关和不同类型控制组件。</li>
+          <li><strong>已确认：</strong>取消独立“配电箱设备列表”菜单，将配电箱能力并入已有“设备功能”；旧地址兼容进入设备功能合并页。</li>
+          <li><strong>已确认：</strong>设备功能原有“功能名称、搜索、所有”筛选、绑定回路/功率/测试/编辑/移除/标签/导出按钮、复选框和全部原字段保持不变，只做新增；功能名称、设备备注、设备名称保留上下排序入口。</li>
+          <li><strong>已确认：</strong>设备功能左侧新增黑色、无树层级的配电箱及“未分类”；名称右侧按“在线功能点数/总功能点数”显示，选择后右侧原列表立即更新。</li>
+          <li><strong>已确认：</strong>复用设备功能已有状态列显示在线、离线、故障，故障文字红色；在“所属页面”右侧新增只读“配电箱”，不提供配电箱关系写操作。</li>
+          <li><strong>已确认：</strong>设备管理删除右上角“配电箱”入口及清除、新建、管理、选择等关系写操作；保留配电箱下拉自动筛选、列表末列只读展示和设备导出字段。</li>
+          <li><strong>已确认：</strong>配电箱及设备关联由其他平台维护并同步，GVP 只读消费同一批同步结果；配电箱名称文字使用同步颜色或既有配置颜色，不增加颜色图标。</li>
           <li><strong>已确认：</strong>历史记录字段不变，只在设备故障消息内容中增加楼栋、房间、配电箱和 IP 地址；配电箱名称文字使用其配置颜色，不增加颜色图标。</li>
-          <li><strong>Demo 假设：</strong>设备按单归属处理，重新关联覆盖旧值；允许多选设备批量关联。</li>
+          <li><strong>待确认：</strong>外部同步协议、主键、频率、失败和延迟处理，以及停用或删除关系后的显示和恢复规则。</li>
           <li><strong>已确认：</strong>楼栋、房间、配电箱和设备 IP 信息完整时，故障消息按“[楼栋 / 房间 / 配电箱] 原故障内容 IP地址：xxx.xxx.xxx.xxx”显示；任一项缺失时直接沿用原故障字段，不追加定位或 IP，不显示“未配置”且不保留空层级。</li>
         </ol>
         <div class="rules-note">评审确认后，应将上述假设回写联合 PRD，再进入正式开发。此页面数据均为脱敏 Mock 数据，刷新页面即可恢复。</div>`,
@@ -783,48 +814,9 @@
     const component = getComponent(id);
     if (!component) return;
     closeModal();
-    state.navigation.editorReturnView = state.navigation.view;
     state.navigation.editorComponentId = component.id;
     render();
     window.scrollTo({ top: 0, behavior: "smooth" });
-  }
-
-  function openAssignCabinetModal() {
-    const selectedIds = [...state.devices.selected];
-    if (!selectedIds.length) {
-      showToast("请先勾选需要关联配电箱的设备", "warning");
-      state.devices.cabinetMenuOpen = false;
-      render();
-      return;
-    }
-    const activeCabinets = model.cabinets.filter((item) => item.status === "active");
-    const firstDevice = model.devices.find((item) => item.id === selectedIds[0]);
-    const currentId = selectedIds.length === 1 && firstDevice?.cabinetIds.length === 1 ? firstDevice.cabinetIds[0] : "";
-    const options = activeCabinets
-      .map(
-        (cabinet, index) => `
-          <label class="cabinet-option${currentId === cabinet.id ? " selected" : ""}" data-cabinet-option data-keywords="${escapeHtml(`${cabinet.name} ${cabinet.code} ${cabinet.area}`.toLocaleLowerCase("zh-CN"))}">
-            <input type="radio" name="cabinetChoice" value="${cabinet.id}"${currentId === cabinet.id ? " checked" : ""}>
-            <span class="cabinet-color-dot" style="--cabinet-color:${cabinetUiColor(cabinet, index)}"></span>
-            <span class="cabinet-option-main"><strong>${escapeHtml(cabinet.name)}</strong><span>${escapeHtml([cabinet.code, cabinet.area].filter(Boolean).join(" · ") || "配电箱")}</span></span>
-            <span class="cabinet-device-count">${model.devices.filter((device) => device.cabinetIds.includes(cabinet.id)).length} 台设备</span>
-            <span class="cabinet-option-check">✓</span>
-          </label>`,
-      )
-      .join("");
-    state.devices.cabinetMenuOpen = false;
-    render();
-    openModal({
-      title: "选择配电箱",
-      large: true,
-      body: `
-        <div class="cabinet-selection-context">已选择 <strong>${selectedIds.length}</strong> 台设备，请选择需要关联的配电箱</div>
-        <div class="cabinet-picker-search">${icon("search")}<input id="cabinetPickerSearch" placeholder="搜索配电箱名称" autocomplete="off"></div>
-        <div class="cabinet-picker" id="cabinetPicker">${options || `<div class="empty-state"><div><strong>暂无可选配电箱</strong>请先新建配电箱</div></div>`}</div>
-        <div class="cabinet-picker-empty" id="cabinetPickerEmpty" hidden>没有匹配的配电箱，请更换名称搜索</div>
-        <div class="form-error" id="cabinetPickerError"></div>`,
-      footer: `<button class="button" type="button" data-action="close-modal">取消</button><button class="button primary" type="button" data-action="confirm-assign-cabinet">确认选择</button>`,
-    });
   }
 
   function cabinetUiLevel(cabinet, index = 0) {
@@ -834,193 +826,6 @@
   function cabinetUiColor(cabinet, index = 0) {
     const level = cabinetUiLevel(cabinet, index);
     return `hsl(${318 + Math.round(level * 0.15)} 92% ${56 + Math.round(level * 0.06)}%)`;
-  }
-
-  function openCabinetForm(id = null) {
-    const cabinet = id ? getCabinet(id) : null;
-    const level = cabinetUiLevel(cabinet ?? {}, 0);
-    state.devices.cabinetMenuOpen = false;
-    render();
-    openModal({
-      title: cabinet ? "编辑配电箱" : "新增配电箱",
-      xlarge: true,
-      body: `
-        <form id="cabinetForm" data-id="${cabinet?.id ?? ""}">
-          <div class="cabinet-save-notice">${icon("info")}<span>数据操作后请及时保存</span></div>
-          <div class="cabinet-manage-table-wrap">
-            <table class="cabinet-manage-table cabinet-create-reference-table">
-              <colgroup><col style="width:15%"><col style="width:34%"><col style="width:31%"><col style="width:20%"></colgroup>
-              <thead><tr><th>编号</th><th>颜色</th><th>配电箱名称</th><th>操作</th></tr></thead>
-              <tbody><tr class="cabinet-create-reference-row">
-                <td>1</td>
-                <td>
-                  <div class="cabinet-color-editor compact">
-                    <span class="cabinet-color-dot" data-cabinet-color-dot style="--cabinet-color:${cabinetUiColor(cabinet ?? {}, 0)}"></span>
-                    <input class="cabinet-color-range" id="cabinetColor" type="range" min="0" max="100" value="${level}" data-cabinet-color-preview aria-label="配电箱颜色">
-                  </div>
-                </td>
-                <td><input class="cabinet-name-input" id="cabinetName" value="${escapeHtml(cabinet?.name ?? "")}" maxlength="40" placeholder="请输入配电箱名称" autocomplete="off"><div class="form-error" id="cabinetNameError"></div></td>
-                <td>
-                  <div class="cabinet-manage-actions">
-                    <button class="cabinet-save-action" type="button" data-action="save-cabinet" aria-label="保存配电箱">${icon("save")}</button>
-                  </div>
-                </td>
-              </tr></tbody>
-            </table>
-          </div>
-          <div class="cabinet-manage-footer cabinet-form-footer"><button type="button" data-action="close-modal">关闭</button></div>
-        </form>`,
-    });
-  }
-
-  function saveCabinet() {
-    const form = document.getElementById("cabinetForm");
-    if (!form) return;
-    const id = form.dataset.id || null;
-    const name = document.getElementById("cabinetName").value.trim();
-    const uiLevel = Number(document.getElementById("cabinetColor").value);
-    document.getElementById("cabinetNameError").textContent = "";
-    if (!name) {
-      document.getElementById("cabinetNameError").textContent = "请输入配电箱名称";
-      return;
-    }
-    let savedCabinet;
-    if (id) {
-      const cabinet = getCabinet(id);
-      Object.assign(cabinet, { name, uiLevel, updatedAt: "2026-08-26 16:36" });
-      savedCabinet = cabinet;
-      showToast(`已保存配电箱“${name}”`, "success");
-    } else {
-      savedCabinet = {
-        id: `cab-${String(Date.now()).slice(-6)}`,
-        name,
-        code: "",
-        roomId: "",
-        area: "",
-        remark: "",
-        status: "active",
-        uiLevel,
-        updatedAt: "2026-08-26 16:36",
-      };
-      model.cabinets.push(savedCabinet);
-      form.dataset.id = savedCabinet.id;
-      showToast(`已新增配电箱“${name}”`, "success");
-    }
-    render();
-    const saveButton = form.querySelector('[data-action="save-cabinet"]');
-    if (saveButton) saveButton.setAttribute("aria-label", `保存 ${name}`);
-  }
-
-  function cabinetManagementDraftRowHtml() {
-    return `
-      <tr class="cabinet-create-reference-row cabinet-management-draft-row">
-        <td>${model.cabinets.length + 1}</td>
-        <td>
-          <div class="cabinet-color-editor compact">
-            <span class="cabinet-color-dot" data-cabinet-color-dot style="--cabinet-color:${cabinetUiColor({}, model.cabinets.length)}"></span>
-            <input class="cabinet-color-range" id="managementNewCabinetColor" type="range" min="0" max="100" value="${cabinetUiLevel({}, model.cabinets.length)}" data-cabinet-color-preview aria-label="新增配电箱颜色">
-          </div>
-        </td>
-        <td><input class="cabinet-name-input" id="managementNewCabinetName" maxlength="40" placeholder="请输入配电箱名称" autocomplete="off"><div class="form-error" id="managementNewCabinetNameError"></div></td>
-        <td>
-          <div class="cabinet-manage-actions">
-            <button class="cabinet-save-action" type="button" data-action="save-management-cabinet" aria-label="保存新增配电箱">${icon("save")}</button>
-          </div>
-        </td>
-      </tr>`;
-  }
-
-  function appendCabinetManagementRow() {
-    const existing = document.querySelector(".cabinet-management-draft-row");
-    if (existing) {
-      existing.scrollIntoView({ block: "nearest" });
-      existing.querySelector("#managementNewCabinetName")?.focus();
-      return;
-    }
-    const body = document.getElementById("cabinetManagementBody");
-    if (!body) return;
-    body.insertAdjacentHTML("beforeend", cabinetManagementDraftRowHtml());
-    const row = body.lastElementChild;
-    row?.scrollIntoView({ block: "nearest" });
-    row?.querySelector("#managementNewCabinetName")?.focus();
-  }
-
-  function saveManagementCabinet() {
-    const nameInput = document.getElementById("managementNewCabinetName");
-    const colorInput = document.getElementById("managementNewCabinetColor");
-    const error = document.getElementById("managementNewCabinetNameError");
-    const name = nameInput?.value.trim() ?? "";
-    if (error) error.textContent = "";
-    if (!name) {
-      if (error) error.textContent = "请输入配电箱名称";
-      nameInput?.focus();
-      return;
-    }
-    model.cabinets.push({
-      id: `cab-${String(Date.now()).slice(-6)}`,
-      name,
-      code: "",
-      roomId: "",
-      area: "",
-      remark: "",
-      status: "active",
-      uiLevel: Number(colorInput?.value ?? 20),
-      updatedAt: "2026-08-26 16:36",
-    });
-    openCabinetManagementModal();
-    showToast(`已新增配电箱“${name}”`, "success");
-  }
-
-  function deleteCabinet(id) {
-    const cabinet = getCabinet(id);
-    if (!cabinet) return;
-    model.cabinets = model.cabinets.filter((item) => item.id !== id);
-    model.devices.forEach((device) => {
-      device.cabinetIds = device.cabinetIds.filter((cabinetId) => cabinetId !== id);
-    });
-    openCabinetManagementModal();
-    showToast(`已删除配电箱“${cabinet.name}”`, "success");
-  }
-
-  function openCabinetManagementModal() {
-    state.devices.cabinetMenuOpen = false;
-    render();
-    const rows = model.cabinets
-      .map(
-        (cabinet, index) => `
-          <tr>
-            <td>${index + 1}</td>
-            <td>
-              <div class="cabinet-color-editor compact">
-                <span class="cabinet-color-dot" data-cabinet-color-dot="${cabinet.id}" style="--cabinet-color:${cabinetUiColor(cabinet, index)}"></span>
-                <input class="cabinet-color-range" type="range" min="0" max="100" value="${cabinetUiLevel(cabinet, index)}" data-cabinet-color="${cabinet.id}" aria-label="${escapeHtml(cabinet.name)}颜色">
-              </div>
-            </td>
-            <td title="${escapeHtml(cabinet.name)}">${escapeHtml(cabinet.name)}</td>
-            <td>
-              <div class="cabinet-manage-actions">
-                <button type="button" data-action="edit-cabinet" data-id="${cabinet.id}" aria-label="编辑 ${escapeHtml(cabinet.name)}">${icon("edit")}</button>
-                <button type="button" data-action="request-delete-cabinet" data-id="${cabinet.id}" aria-label="删除 ${escapeHtml(cabinet.name)}">${icon("trash")}</button>
-                <button type="button" data-action="append-cabinet-management-row" aria-label="在列表末尾新增配电箱">${icon("plus")}</button>
-              </div>
-            </td>
-          </tr>`,
-      )
-      .join("");
-    openModal({
-      title: "管理配电箱",
-      xlarge: true,
-      body: `
-        <div class="cabinet-save-notice">${icon("info")}<span>数据操作后请及时保存</span></div>
-        <div class="cabinet-manage-table-wrap">
-          <table class="cabinet-manage-table">
-            <colgroup><col style="width:15%"><col style="width:34%"><col style="width:31%"><col style="width:20%"></colgroup>
-            <thead><tr><th>编号</th><th>颜色</th><th>配电箱名称</th><th>操作</th></tr></thead>
-            <tbody id="cabinetManagementBody">${rows}</tbody>
-          </table>
-        </div>
-        <div class="cabinet-manage-footer"><button type="button" data-action="close-modal">关闭</button></div>`,
-    });
   }
 
   function openModifyIpModal() {
@@ -1104,15 +909,21 @@
       pageItems.forEach((item) => (target.checked ? state.devices.selected.add(item.id) : state.devices.selected.delete(item.id)));
       render();
     }
-    if (target.matches('input[name="cabinetChoice"]')) {
-      document.querySelectorAll("[data-cabinet-option]").forEach((option) => option.classList.remove("selected"));
-      target.closest("[data-cabinet-option]")?.classList.add("selected");
-      const error = document.getElementById("cabinetPickerError");
-      if (error) error.textContent = "";
+    if (target.matches('[data-action="select-device-function"]')) {
+      const id = target.dataset.id;
+      if (target.checked) state.deviceFunctions.selected.add(id);
+      else state.deviceFunctions.selected.delete(id);
+      render();
     }
-    if (target.id === "navType") {
-      state.navigation.appliedType = target.value;
-      state.navigation.page = 1;
+    if (target.matches('[data-action="select-all-device-functions"]')) {
+      const filtered = filteredDeviceFunctions();
+      const pageItems = filtered.slice((state.deviceFunctions.page - 1) * state.deviceFunctions.pageSize, state.deviceFunctions.page * state.deviceFunctions.pageSize);
+      pageItems.forEach((item) => (target.checked ? state.deviceFunctions.selected.add(item.id) : state.deviceFunctions.selected.delete(item.id)));
+      render();
+    }
+    if (target.id === "deviceFunctionType") {
+      state.deviceFunctions.appliedType = target.value;
+      state.deviceFunctions.page = 1;
       render();
     }
     if (["historyType", "historyDate"].includes(target.id)) applyHistoryFilter();
@@ -1121,14 +932,14 @@
 
   document.addEventListener("input", (event) => {
     const target = event.target;
-    if (target.id === "navKeyword") {
-      state.navigation.appliedName = target.value.trim();
-      state.navigation.page = 1;
-      window.clearTimeout(navigationFilterTimer);
-      navigationFilterTimer = window.setTimeout(() => {
+    if (target.id === "deviceFunctionKeyword") {
+      state.deviceFunctions.appliedKeyword = target.value.trim();
+      state.deviceFunctions.page = 1;
+      window.clearTimeout(deviceFunctionFilterTimer);
+      deviceFunctionFilterTimer = window.setTimeout(() => {
         render();
         requestAnimationFrame(() => {
-          const input = document.getElementById("navKeyword");
+          const input = document.getElementById("deviceFunctionKeyword");
           if (input) {
             input.focus();
             input.setSelectionRange(input.value.length, input.value.length);
@@ -1159,31 +970,6 @@
         const value = Math.max(Number(target.min), Math.min(Number(target.max), Number(target.value) || Number(target.min)));
         preview.style.setProperty(target.id === "editorWidth" ? "--editor-preview-width" : "--editor-preview-height", `${value}px`);
       }
-      return;
-    }
-    if (target.id === "cabinetPickerSearch") {
-      const keyword = target.value.trim().toLocaleLowerCase("zh-CN");
-      let visibleCount = 0;
-      document.querySelectorAll("[data-cabinet-option]").forEach((option) => {
-        const visible = !keyword || option.dataset.keywords.includes(keyword);
-        option.style.display = visible ? "grid" : "none";
-        if (visible) visibleCount += 1;
-      });
-      const empty = document.getElementById("cabinetPickerEmpty");
-      if (empty) empty.hidden = visibleCount > 0;
-      return;
-    }
-    if (target.matches("[data-cabinet-color-preview]")) {
-      const dot = target.closest(".cabinet-create-reference-row")?.querySelector("[data-cabinet-color-dot]");
-      if (dot) dot.style.setProperty("--cabinet-color", cabinetUiColor({ uiLevel: Number(target.value) }));
-      return;
-    }
-    if (target.matches("[data-cabinet-color]")) {
-      const cabinet = getCabinet(target.dataset.cabinetColor);
-      if (!cabinet) return;
-      cabinet.uiLevel = Number(target.value);
-      const dot = document.querySelector(`[data-cabinet-color-dot="${cabinet.id}"]`);
-      if (dot) dot.style.setProperty("--cabinet-color", cabinetUiColor(cabinet));
       return;
     }
     if (target.id === "pageTreeSearch") {
@@ -1223,37 +1009,32 @@
       return;
     }
     const target = event.target.closest("[data-action]");
-    if (!target) {
-      if (state.openTree || state.devices.cabinetMenuOpen) {
-        state.openTree = null;
-        state.devices.cabinetMenuOpen = false;
-        render();
-      }
-      return;
-    }
+    if (!target) return;
     const action = target.dataset.action;
-    if (action === "toggle-cabinet-menu") {
-      state.devices.cabinetMenuOpen = !state.devices.cabinetMenuOpen;
-      render();
-      return;
-    }
-    if (action === "toggle-tree") {
-      state.openTree = state.openTree === target.dataset.scope ? null : target.dataset.scope;
-      render();
-      return;
-    }
     if (action === "set-location") {
       if (target.dataset.scope === "navigation") {
         state.navigation.selectedLocation = target.dataset.location;
-        state.navigation.page = 1;
       }
-      state.openTree = null;
       render();
       return;
     }
-    if (action === "set-nav-view") {
-      state.navigation.view = target.dataset.view;
-      state.navigation.page = 1;
+    if (action === "select-device-function-cabinet") {
+      state.deviceFunctions.selectedCabinetId = target.dataset.cabinetId;
+      state.deviceFunctions.page = 1;
+      render();
+      return;
+    }
+    if (action === "sort-device-functions") {
+      const sortField = target.dataset.sortField;
+      if (!["name", "remark", "deviceName"].includes(sortField)) return;
+      const view = state.deviceFunctions;
+      if (view.sortField === sortField) {
+        view.sortDirection = view.sortDirection === "asc" ? "desc" : "asc";
+      } else {
+        view.sortField = sortField;
+        view.sortDirection = "asc";
+      }
+      view.page = 1;
       render();
       return;
     }
@@ -1279,8 +1060,7 @@
     }
     if (action === "control-all-components") {
       const value = target.dataset.value;
-      const isListScope = target.dataset.controlScope === "list";
-      const targets = isListScope ? filteredNavigationComponents() : model.components.filter((item) => item.roomId === target.dataset.roomId);
+      const targets = model.components.filter((item) => item.roomId === target.dataset.roomId);
       targets.forEach((component) => {
         component.state = value;
         if (component.controlType === "curtain") {
@@ -1289,7 +1069,7 @@
         }
       });
       render();
-      showToast(`${isListScope ? `当前列表 ${targets.length} 个` : "当前页面"}组件已${value === "on" ? "全开" : "全关"}`, "success");
+      showToast(`当前页面组件已${value === "on" ? "全开" : "全关"}`, "success");
       return;
     }
     if (action === "adjust-setpoint") {
@@ -1353,7 +1133,6 @@
     }
     if (action === "close-component-editor") {
       state.navigation.editorComponentId = null;
-      state.navigation.view = state.navigation.editorReturnView;
       render();
       return;
     }
@@ -1398,17 +1177,8 @@
       const room = model.locations.flatMap((item) => item.rooms).find((item) => item.id === roomId);
       Object.assign(component, { name, remark: document.getElementById("componentEditorDescription").value.trim(), roomId, page: room?.name ?? component.page });
       state.navigation.editorComponentId = null;
-      state.navigation.view = state.navigation.editorReturnView;
       showToast(`已保存组件“${name}”`, "success");
       render();
-      return;
-    }
-    if (action === "manage-cabinets") {
-      openCabinetManagementModal();
-      return;
-    }
-    if (action === "assign-cabinet") {
-      openAssignCabinetModal();
       return;
     }
     if (action === "clear-device-selection") {
@@ -1416,38 +1186,23 @@
       render();
       return;
     }
-    if (action === "confirm-assign-cabinet") {
-      const selectedCabinet = document.querySelector('input[name="cabinetChoice"]:checked');
-      if (!selectedCabinet) {
-        document.getElementById("cabinetPickerError").textContent = "请选择一个配电箱";
-        return;
+    if (action === "device-function-action") {
+      const count = state.deviceFunctions.selected.size;
+      if (!count) {
+        showToast(`请先选择设备功能，再执行“${target.dataset.name}”`, "warning");
+      } else {
+        showToast(`已保留原“${target.dataset.name}”入口，当前选中 ${count} 个设备功能`, "success");
       }
-      const cabinet = getCabinet(selectedCabinet.value);
-      const count = state.devices.selected.size;
-      model.devices.forEach((device) => {
-        if (state.devices.selected.has(device.id)) device.cabinetIds = [cabinet.id];
-      });
-      state.devices.selected.clear();
-      closeModal();
-      render();
-      showToast(`已为 ${count} 台设备关联“${cabinet.name}”`, "success");
       return;
     }
-    if (action === "clear-device-cabinet") {
-      const count = state.devices.selected.size;
-      if (!count) {
-        state.devices.cabinetMenuOpen = false;
-        render();
-        showToast("请先勾选需要清除配电箱的设备", "warning");
-        return;
-      }
-      model.devices.forEach((device) => {
-        if (state.devices.selected.has(device.id)) device.cabinetIds = [];
+    if (action === "export-device-functions") {
+      const rows = filteredDeviceFunctions().map((component) => {
+        const cabinet = getCabinet(component.cabinetId);
+        const status = { online: "在线", offline: "离线", fault: "故障" }[component.deviceStatus] ?? "离线";
+        return [component.name, component.type, status, component.page, component.remark, componentDeviceName(component), componentLocationPath(component), 0, 0, 0, 0, 0, 0, "", cabinet?.name ?? ""];
       });
-      state.devices.selected.clear();
-      state.devices.cabinetMenuOpen = false;
-      render();
-      showToast(`已解除 ${count} 台设备的配电箱关联`, "success");
+      downloadCsv("设备功能-导出.csv", ["功能名称", "功能类型", "状态", "所属页面", "设备备注", "设备名称", "楼层节点", "功率(W)", "总使用寿命(小时)", "总开合次数(次)", "运行时间(小时)", "已开合次数(次)", "绑定回路数", "描述", "配电箱"], rows);
+      showToast("已导出当前设备功能筛选结果，并在原字段末尾增加配电箱", "success");
       return;
     }
     if (action === "export-devices") {
@@ -1483,30 +1238,6 @@
       showToast(count ? `已刷新 ${count} 台设备的监测状态` : "已刷新当前列表的监测状态", "success");
       return;
     }
-    if (action === "add-cabinet") {
-      openCabinetForm();
-      return;
-    }
-    if (action === "edit-cabinet") {
-      openCabinetForm(target.dataset.id);
-      return;
-    }
-    if (action === "request-delete-cabinet") {
-      deleteCabinet(target.dataset.id);
-      return;
-    }
-    if (action === "append-cabinet-management-row") {
-      appendCabinetManagementRow();
-      return;
-    }
-    if (action === "save-cabinet") {
-      saveCabinet();
-      return;
-    }
-    if (action === "save-management-cabinet") {
-      saveManagementCabinet();
-      return;
-    }
     if (action === "export-history") {
       const entries = model.history.filter((entry) => (state.history.appliedType === "all" || entry.type === state.history.appliedType) && (state.history.appliedDate === "all" || (state.history.appliedDate === "today" && entry.at.startsWith("2026-08-25")) || (state.history.appliedDate === "7days" && entry.at >= "2026-08-19")));
       downloadCsv("历史记录-导出.csv", ["类型", "日期和时间", "消息内容"], entries.map((entry) => [entry.type, entry.at, historyMessageText(entry)]));
@@ -1532,6 +1263,9 @@
     if (action === "reset-demo") {
       model = window.GVP_DEMO_DATA.create();
       state.devices.selected.clear();
+      state.deviceFunctions.selected.clear();
+      state.deviceFunctions.sortField = null;
+      state.deviceFunctions.sortDirection = "asc";
       state.navigation.editorComponentId = null;
       closeModal();
       render();
@@ -1554,18 +1288,13 @@
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
       if (modalRoot.innerHTML) closeModal();
-      else if (state.openTree || state.devices.cabinetMenuOpen) {
-        state.openTree = null;
-        state.devices.cabinetMenuOpen = false;
-        render();
-      }
     }
   });
 
   window.addEventListener("hashchange", render);
 
   if (!window.location.hash) {
-    window.location.hash = "navigation";
+    window.location.hash = "device-functions";
   } else {
     render();
   }

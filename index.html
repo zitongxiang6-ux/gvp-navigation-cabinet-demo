@@ -8,14 +8,14 @@
     <meta http-equiv="Expires" content="0" />
     <meta
       name="description"
-      content="GVP 导航双视图、配电箱管理、设备关联与历史故障定位交互 Demo"
+      content="GVP 导航组件视图、设备功能配电箱分组、外部同步配电箱只读展示与历史故障定位交互 Demo"
     />
     <meta name="gvp-demo-id" content="REQ-2026-001-004-navigation-cabinet" />
-    <meta name="gvp-demo-build" content="20260826-2015" />
+    <meta name="gvp-demo-build" content="20260828-device-function-sort-cabinet-order" />
     <title>GVP 导航与配电箱增强 Demo</title>
-    <link rel="stylesheet" href="./styles.css?v=20260826-cabinet-filter" />
-    <script src="./data.js?v=20260826-cabinet-filter" defer></script>
-    <script src="./app.js?v=20260826-cabinet-filter" defer></script>
+    <link rel="stylesheet" href="./styles.css?v=20260828-device-function-sort-cabinet-order" />
+    <script src="./data.js?v=20260828-device-function-sort-cabinet-order" defer></script>
+    <script src="./app.js?v=20260828-device-function-sort-cabinet-order" defer></script>
   </head>
   <body>
     <svg class="svg-sprite" aria-hidden="true">
@@ -36,6 +36,12 @@
       <symbol id="i-cabinet" viewBox="0 0 24 24">
         <rect x="5" y="3" width="14" height="18" rx="2" />
         <path d="M5 9h14M9 6h6M8 13h8M8 17h5" />
+      </symbol>
+      <symbol id="i-function" viewBox="0 0 24 24">
+        <rect x="4" y="4" width="6" height="6" rx="1" />
+        <rect x="14" y="4" width="6" height="6" rx="1" />
+        <rect x="4" y="14" width="6" height="6" rx="1" />
+        <circle cx="17" cy="17" r="3" />
       </symbol>
       <symbol id="i-search" viewBox="0 0 24 24">
         <circle cx="11" cy="11" r="7" />
@@ -108,11 +114,15 @@
             <span>G</span>
           </div>
           <nav class="side-nav">
-            <button class="side-nav-item" type="button" data-page="overview" aria-label="首页">
+            <!-- 临时隐藏首页、导航入口：路由、页面和实现代码保留，恢复时移除 is-temporarily-hidden。 -->
+            <button class="side-nav-item is-temporarily-hidden" type="button" data-page="overview" aria-label="首页">
               <svg><use href="#i-home"></use></svg>
             </button>
-            <button class="side-nav-item" type="button" data-page="navigation" aria-label="导航组件">
+            <button class="side-nav-item is-temporarily-hidden" type="button" data-page="navigation" aria-label="导航">
               <svg><use href="#i-menu"></use></svg>
+            </button>
+            <button class="side-nav-item" type="button" data-page="device-functions" aria-label="设备功能">
+              <svg><use href="#i-function"></use></svg>
             </button>
             <button class="side-nav-item" type="button" data-page="history" aria-label="历史记录">
               <svg><use href="#i-clock"></use></svg>
