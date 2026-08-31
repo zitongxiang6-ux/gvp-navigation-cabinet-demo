@@ -19,7 +19,6 @@
       editorComponentId: null,
     },
     deviceFunctions: {
-      selectedCabinetId: "cab-001",
       appliedKeyword: "",
       appliedType: "all",
       sortField: null,
@@ -27,6 +26,10 @@
       page: 1,
       pageSize: 10,
       selected: new Set(),
+    },
+    cabinetFunctions: {
+      selectedAreaId: "all",
+      selectedCabinetId: "cab-001",
     },
     devices: {
       filterField: "remark",
@@ -52,6 +55,7 @@
     overview: "首页",
     navigation: "导航",
     "device-functions": "设备功能",
+    "cabinet-functions": "配电箱功能查询",
     history: "历史记录",
     devices: "设备管理",
   };
@@ -59,11 +63,11 @@
   function getPageFromHash() {
     const value = window.location.hash.replace(/^#/, "");
     if (value === "cabinet-devices") {
-      window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}#device-functions`);
-      return "device-functions";
+      window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}#cabinet-functions`);
+      return "cabinet-functions";
     }
-    const validPages = ["overview", "navigation", "device-functions", "history", "devices"];
-    return validPages.includes(value) ? value : "device-functions";
+    const validPages = ["overview", "navigation", "device-functions", "cabinet-functions", "history", "devices"];
+    return validPages.includes(value) ? value : "cabinet-functions";
   }
 
   function escapeHtml(value) {
@@ -103,7 +107,6 @@
     const keyword = view.appliedKeyword.trim().toLocaleLowerCase("zh-CN");
     const filtered = model.components.filter(
       (item) =>
-        (view.selectedCabinetId === "unclassified" ? !item.cabinetId : item.cabinetId === view.selectedCabinetId) &&
         (view.appliedType === "all" || item.type === view.appliedType) &&
         (!keyword || item.name.toLocaleLowerCase("zh-CN").includes(keyword)),
     );
@@ -327,6 +330,9 @@
       case "device-functions":
         app.innerHTML = renderDeviceFunctionPage();
         break;
+      case "cabinet-functions":
+        app.innerHTML = renderCabinetFunctionQueryPage();
+        break;
       case "devices":
         app.innerHTML = renderDevicePage();
         break;
@@ -360,25 +366,6 @@
 
   function renderDeviceFunctionPage() {
     const view = state.deviceFunctions;
-    const activeCabinets = model.cabinets.filter((item) => item.status === "active");
-    if (view.selectedCabinetId !== "unclassified" && !activeCabinets.some((item) => item.id === view.selectedCabinetId)) {
-      view.selectedCabinetId = activeCabinets[0]?.id ?? "unclassified";
-    }
-
-    const cabinetOptions = [
-      ...activeCabinets.map((cabinet) => ({ id: cabinet.id, name: cabinet.name })),
-      { id: "unclassified", name: "未分类" },
-    ]
-      .map((option) => {
-        const components = model.components.filter((item) => (option.id === "unclassified" ? !item.cabinetId : item.cabinetId === option.id));
-        const online = components.filter((item) => item.deviceStatus === "online").length;
-        return `
-          <button class="cabinet-device-option${view.selectedCabinetId === option.id ? " active" : ""}" type="button" data-action="select-device-function-cabinet" data-cabinet-id="${option.id}" aria-pressed="${view.selectedCabinetId === option.id}">
-            <span>${escapeHtml(option.name)}</span><span class="cabinet-device-option-count">（${online}/${components.length}）</span>
-          </button>`;
-      })
-      .join("");
-
     const filtered = filteredDeviceFunctions();
     const totalPages = Math.max(1, Math.ceil(filtered.length / view.pageSize));
     if (view.page > totalPages) view.page = totalPages;
@@ -389,7 +376,6 @@
     const rows = pageItems.length
       ? pageItems
           .map((item) => {
-            const cabinet = getCabinet(item.cabinetId);
             const selected = view.selected.has(item.id);
             return `
               <tr>
@@ -398,7 +384,6 @@
                 <td>${escapeHtml(item.type)}</td>
                 <td><span class="device-status-text ${escapeHtml(item.deviceStatus)}">${statusLabels[item.deviceStatus] ?? "离线"}</span></td>
                 <td>${escapeHtml(item.page)}</td>
-                <td class="device-cabinet-cell" title="${escapeHtml(cabinet?.name ?? "")}">${cabinetColorText(cabinet?.name, cabinet)}</td>
                 <td title="${escapeHtml(item.remark)}">${escapeHtml(item.remark)}</td>
                 <td title="${escapeHtml(componentDeviceName(item))}">${escapeHtml(componentDeviceName(item))}</td>
                 <td title="${escapeHtml(componentLocationPath(item))}">${escapeHtml(componentLocationPath(item))}</td>
@@ -412,50 +397,204 @@
               </tr>`;
           })
           .join("")
-      : `<tr><td colspan="16"><div class="empty-state"><div><strong>没有匹配的设备功能</strong>请调整功能名称或功能类型</div></div></td></tr>`;
+      : `<tr><td colspan="15"><div class="empty-state"><div><strong>没有匹配的设备功能</strong>请调整功能名称或功能类型</div></div></td></tr>`;
 
     return `
-      <section class="page cabinet-device-page device-function-page">
-        <div class="cabinet-device-workbench device-function-workbench">
-          <aside class="cabinet-device-explorer" aria-label="配电箱列表">
-            <div class="cabinet-device-explorer-header">配电箱</div>
-            <div class="cabinet-device-options">${cabinetOptions}</div>
-          </aside>
-          <section class="cabinet-device-stage device-function-stage">
-            <div class="device-function-toolbar">
-              <div class="device-function-filters">
-                <select id="deviceFunctionField" aria-label="搜索字段"><option value="name">功能名称</option></select>
-                <div class="reference-search">
-                  ${icon("search")}
-                  <input id="deviceFunctionKeyword" value="${escapeHtml(view.appliedKeyword)}" placeholder="搜索" autocomplete="off" />
-                </div>
-                <select id="deviceFunctionType" aria-label="功能类型">
-                  <option value="all">所有</option>
-                  ${componentTypes().map((type) => `<option value="${escapeHtml(type)}"${view.appliedType === type ? " selected" : ""}>${escapeHtml(type)}</option>`).join("")}
-                </select>
+      <section class="page device-function-page">
+        <div class="page-panel device-function-panel">
+          <div class="device-function-toolbar">
+            <div class="device-function-filters">
+              <select id="deviceFunctionField" aria-label="搜索字段"><option value="name">功能名称</option></select>
+              <div class="reference-search">
+                ${icon("search")}
+                <input id="deviceFunctionKeyword" value="${escapeHtml(view.appliedKeyword)}" placeholder="搜索" autocomplete="off" />
               </div>
-              <div class="device-function-actions" aria-label="设备功能操作">
-                <button type="button" data-action="device-function-action" data-name="绑定回路">${icon("manage")}绑定回路</button>
-                <button type="button" data-action="device-function-action" data-name="功率">${icon("power")}功率</button>
-                <button type="button" data-action="device-function-action" data-name="测试">${icon("refresh")}测试</button>
-                <button type="button" data-action="device-function-action" data-name="编辑">${icon("edit")}编辑</button>
-                <button type="button" data-action="device-function-action" data-name="移除">${icon("minus")}移除</button>
-                <button type="button" data-action="device-function-action" data-name="标签">${icon("list")}标签</button>
-                <button class="reference-export-button" type="button" data-action="export-device-functions">${icon("export")}导出</button>
-              </div>
+              <select id="deviceFunctionType" aria-label="功能类型">
+                <option value="all">所有</option>
+                ${componentTypes().map((type) => `<option value="${escapeHtml(type)}"${view.appliedType === type ? " selected" : ""}>${escapeHtml(type)}</option>`).join("")}
+              </select>
             </div>
-            <div class="cabinet-device-table-panel">
-              <div class="table-wrap device-function-table-wrap">
-                <table class="data-table cabinet-device-table device-function-table">
-                  <thead><tr>
-                    <th class="checkbox-cell"><input class="table-checkbox" type="checkbox" data-action="select-all-device-functions"${allPageSelected ? " checked" : ""} aria-label="选择本页全部设备功能"></th>
-                    ${deviceFunctionSortHeader("功能名称", "name")}<th>功能类型</th><th>状态</th><th>所属页面</th><th>配电箱</th>${deviceFunctionSortHeader("设备备注", "remark")}${deviceFunctionSortHeader("设备名称", "deviceName")}<th>楼层节点</th><th>功率<br>(W)</th><th>总使用寿命<br>(小时)</th><th>总开合次数<br>(次)</th><th>运行时间<br>(小时)</th><th>已开合次数<br>(次)</th><th>绑定回路数</th><th>描述</th>
-                  </tr></thead>
-                  <tbody>${rows}</tbody>
+            <div class="device-function-actions" aria-label="设备功能操作">
+              <button type="button" data-action="device-function-action" data-name="绑定回路">${icon("manage")}绑定回路</button>
+              <button type="button" data-action="device-function-action" data-name="功率">${icon("power")}功率</button>
+              <button type="button" data-action="device-function-action" data-name="测试">${icon("refresh")}测试</button>
+              <button type="button" data-action="device-function-action" data-name="编辑">${icon("edit")}编辑</button>
+              <button type="button" data-action="device-function-action" data-name="移除">${icon("minus")}移除</button>
+              <button type="button" data-action="device-function-action" data-name="标签">${icon("list")}标签</button>
+              <button class="reference-export-button" type="button" data-action="export-device-functions">${icon("export")}导出</button>
+            </div>
+          </div>
+          <div class="cabinet-device-table-panel">
+            <div class="table-wrap device-function-table-wrap">
+              <table class="data-table cabinet-device-table device-function-table">
+                <thead><tr>
+                  <th class="checkbox-cell"><input class="table-checkbox" type="checkbox" data-action="select-all-device-functions"${allPageSelected ? " checked" : ""} aria-label="选择本页全部设备功能"></th>
+                  ${deviceFunctionSortHeader("功能名称", "name")}<th>功能类型</th><th>状态</th><th>所属页面</th>${deviceFunctionSortHeader("设备备注", "remark")}${deviceFunctionSortHeader("设备名称", "deviceName")}<th>楼层节点</th><th>功率<br>(W)</th><th>总使用寿命<br>(小时)</th><th>总开合次数<br>(次)</th><th>运行时间<br>(小时)</th><th>已开合次数<br>(次)</th><th>绑定回路数</th><th>描述</th>
+                </tr></thead>
+                <tbody>${rows}</tbody>
+              </table>
+            </div>
+            ${pagerHtml(filtered.length, view.page, view.pageSize, "deviceFunctions")}
+          </div>
+        </div>
+      </section>`;
+  }
+
+  function areaDetails(areaId) {
+    if (areaId === "all") {
+      return { id: "all", name: "全部区域", roomIds: model.locations.flatMap((building) => building.rooms.map((room) => room.id)) };
+    }
+    const building = model.locations.find((item) => item.id === areaId);
+    if (building) return { id: building.id, name: building.name, roomIds: building.rooms.map((room) => room.id) };
+    for (const item of model.locations) {
+      const room = item.rooms.find((candidate) => candidate.id === areaId);
+      if (room) return { id: room.id, name: `${item.name} / ${room.name}`, roomIds: [room.id] };
+    }
+    return areaDetails("all");
+  }
+
+  function componentsInArea(areaId) {
+    const roomIds = new Set(areaDetails(areaId).roomIds);
+    return model.components.filter((component) => roomIds.has(component.roomId));
+  }
+
+  function historyMatchesArea(entry, areaId) {
+    if (areaId === "all") return true;
+    const building = model.locations.find((item) => item.id === areaId);
+    if (building) return entry.message.includes(building.name);
+    const room = model.locations.flatMap((item) => item.rooms).find((item) => item.id === areaId);
+    return room ? entry.message.includes(room.name) : false;
+  }
+
+  function renderCabinetAreaTree(selectedAreaId) {
+    return `
+      <div class="cabinet-area-tree" role="tree" aria-label="区域树">
+        <button class="cabinet-area-node root${selectedAreaId === "all" ? " active" : ""}" type="button" role="treeitem" aria-selected="${selectedAreaId === "all"}" data-action="select-cabinet-area" data-area-id="all"><span aria-hidden="true">⌄</span>全部区域</button>
+        ${model.locations
+          .map(
+            (building) => `
+              <div class="cabinet-area-group" role="group">
+                <button class="cabinet-area-node building${selectedAreaId === building.id ? " active" : ""}" type="button" role="treeitem" aria-selected="${selectedAreaId === building.id}" data-action="select-cabinet-area" data-area-id="${building.id}"><span aria-hidden="true">⌄</span>${escapeHtml(building.name)}</button>
+                ${building.rooms
+                  .map(
+                    (room) => `<button class="cabinet-area-node room${selectedAreaId === room.id ? " active" : ""}" type="button" role="treeitem" aria-selected="${selectedAreaId === room.id}" data-action="select-cabinet-area" data-area-id="${room.id}">${escapeHtml(room.name)}</button>`,
+                  )
+                  .join("")}
+              </div>`,
+          )
+          .join("")}
+      </div>`;
+  }
+
+  function renderCabinetFunctionQueryPage() {
+    const view = state.cabinetFunctions;
+    const selectedArea = areaDetails(view.selectedAreaId);
+    const areaComponents = componentsInArea(selectedArea.id);
+    const activeCabinets = model.cabinets.filter(
+      (cabinet) => cabinet.status === "active" && areaComponents.some((component) => component.cabinetId === cabinet.id),
+    );
+    const hasUnclassified = areaComponents.some((component) => !component.cabinetId);
+    const cabinetOptions = [
+      ...activeCabinets.map((cabinet) => ({ id: cabinet.id, name: cabinet.name })),
+      ...(hasUnclassified ? [{ id: "unclassified", name: "未分类" }] : []),
+    ];
+    if (!cabinetOptions.some((option) => option.id === view.selectedCabinetId)) {
+      view.selectedCabinetId = cabinetOptions[0]?.id ?? "unclassified";
+    }
+
+    const selectedCabinet = cabinetOptions.find((option) => option.id === view.selectedCabinetId) ?? { id: "unclassified", name: "未分类" };
+    const visibleComponents = areaComponents.filter((component) =>
+      selectedCabinet.id === "unclassified" ? !component.cabinetId : component.cabinetId === selectedCabinet.id,
+    );
+    const statusLabels = { online: "在线", offline: "离线", fault: "故障" };
+    const onlineCount = visibleComponents.filter((component) => component.deviceStatus === "online").length;
+    const offlineCount = visibleComponents.filter((component) => component.deviceStatus === "offline").length;
+    const faultCount = visibleComponents.filter((component) => component.deviceStatus === "fault").length;
+    const detailRows = visibleComponents.length
+      ? visibleComponents
+          .map((component) => {
+            const cabinet = getCabinet(component.cabinetId);
+            return `
+              <tr>
+                <td title="${escapeHtml(component.name)}">${escapeHtml(component.name)}</td>
+                <td>${escapeHtml(component.type)}</td>
+                <td><span class="device-status-text ${escapeHtml(component.deviceStatus)}">${statusLabels[component.deviceStatus] ?? "离线"}</span></td>
+                <td>${escapeHtml(component.page)}</td>
+                <td class="device-cabinet-cell" title="${escapeHtml(cabinet?.name ?? "")}">${cabinetColorText(cabinet?.name, cabinet)}</td>
+                <td title="${escapeHtml(component.remark)}">${escapeHtml(component.remark)}</td>
+                <td title="${escapeHtml(componentDeviceName(component))}">${escapeHtml(componentDeviceName(component))}</td>
+                <td title="${escapeHtml(componentLocationPath(component))}">${escapeHtml(componentLocationPath(component))}</td>
+              </tr>`;
+          })
+          .join("")
+      : `<tr><td colspan="8"><div class="empty-state"><div><strong>暂无设备功能明细</strong>当前区域与配电箱下没有匹配数据</div></div></td></tr>`;
+
+    const faultEntries = model.history.filter(
+      (entry) =>
+        entry.type === "设备故障" &&
+        historyMatchesArea(entry, selectedArea.id) &&
+        (selectedCabinet.id === "unclassified" ? !entry.cabinetId : entry.cabinetId === selectedCabinet.id),
+    );
+    const currentFaults = visibleComponents.filter((component) => component.deviceStatus === "fault");
+    const faultRows = currentFaults.length || faultEntries.length
+      ? `${currentFaults.map((component) => `<tr><td>当前状态</td><td class="message-content"><strong>${escapeHtml(component.name)}</strong>：当前设备功能状态为故障</td></tr>`).join("")}${faultEntries.map((entry) => `<tr><td>${escapeHtml(entry.at)}</td><td class="message-content">${formatHistoryMessage(entry)}</td></tr>`).join("")}`
+      : `<tr><td colspan="2"><div class="empty-state compact"><div><strong>暂无故障记录</strong>当前区域与配电箱没有匹配的设备故障</div></div></td></tr>`;
+    const cabinetOptionMarkup = cabinetOptions.length
+      ? cabinetOptions
+          .map((option) => {
+            const components = areaComponents.filter((component) => (option.id === "unclassified" ? !component.cabinetId : component.cabinetId === option.id));
+            const online = components.filter((component) => component.deviceStatus === "online").length;
+            return `
+              <button class="cabinet-device-option${selectedCabinet.id === option.id ? " active" : ""}" type="button" data-action="select-cabinet-query-cabinet" data-cabinet-id="${option.id}" aria-pressed="${selectedCabinet.id === option.id}">
+                <span>${escapeHtml(option.name)}</span><span class="cabinet-device-option-count">（${online}/${components.length}）</span>
+              </button>`;
+          })
+          .join("")
+      : `<div class="cabinet-filter-empty">该区域暂无配电箱</div>`;
+
+    return `
+      <section class="page cabinet-device-page cabinet-query-page">
+        <div class="cabinet-device-workbench cabinet-query-workbench">
+          <aside class="cabinet-device-explorer cabinet-query-explorer" aria-label="区域与配电箱筛选">
+            <div class="cabinet-query-filter-section">
+              <div class="cabinet-device-explorer-header">区域</div>
+              ${renderCabinetAreaTree(selectedArea.id)}
+            </div>
+            <div class="cabinet-query-filter-section cabinet-filter-section">
+              <div class="cabinet-device-explorer-header">配电箱</div>
+              <div class="cabinet-device-options">${cabinetOptionMarkup}</div>
+            </div>
+          </aside>
+          <section class="cabinet-device-stage cabinet-query-stage">
+            <header class="cabinet-query-stage-header">
+              <div><strong>${escapeHtml(selectedCabinet.name)}</strong><span>${escapeHtml(selectedArea.name)}</span></div>
+              <span class="read-only-badge">只读查询</span>
+            </header>
+            <div class="cabinet-query-summary" aria-label="设备功能状态汇总">
+              <div><span>功能总数</span><strong>${visibleComponents.length}</strong></div>
+              <div><span>在线</span><strong>${onlineCount}</strong></div>
+              <div><span>离线</span><strong>${offlineCount}</strong></div>
+              <div class="fault"><span>故障</span><strong>${faultCount}</strong></div>
+            </div>
+            <section class="cabinet-query-section" aria-labelledby="cabinetFunctionDetailsTitle">
+              <div class="cabinet-query-section-title"><div><h2 id="cabinetFunctionDetailsTitle">设备功能明细</h2><p>选择左侧区域或配电箱后自动更新，仅供查看。</p></div></div>
+              <div class="table-wrap cabinet-query-table-wrap">
+                <table class="data-table cabinet-query-table">
+                  <thead><tr><th>功能名称</th><th>功能类型</th><th>状态</th><th>所属页面</th><th>配电箱</th><th>设备备注</th><th>设备名称</th><th>楼层节点</th></tr></thead>
+                  <tbody>${detailRows}</tbody>
                 </table>
               </div>
-              ${pagerHtml(filtered.length, view.page, view.pageSize, "deviceFunctions")}
-            </div>
+            </section>
+            <section class="cabinet-query-section" aria-labelledby="cabinetFaultsTitle">
+              <div class="cabinet-query-section-title"><div><h2 id="cabinetFaultsTitle">故障记录</h2><p>仅展示当前区域与配电箱关联的设备故障。</p></div></div>
+              <div class="table-wrap">
+                <table class="data-table cabinet-query-fault-table">
+                  <colgroup><col style="width:190px"><col></colgroup>
+                  <thead><tr><th>日期和时间</th><th>故障信息</th></tr></thead>
+                  <tbody>${faultRows}</tbody>
+                </table>
+              </div>
+            </section>
           </section>
         </div>
       </section>`;
@@ -755,7 +894,7 @@
   function renderPlaceholderPage(page) {
     return `
       <section class="placeholder-page">
-        <div><strong>${escapeHtml(pageNames[page] ?? "页面")}</strong>本次 Demo 只实现导航、设备功能配电箱分组、设备管理只读配电箱信息和历史记录。</div>
+        <div><strong>${escapeHtml(pageNames[page] ?? "页面")}</strong>本次 Demo 只实现导航、设备功能、配电箱功能查询、设备管理只读配电箱信息和历史记录。</div>
       </section>`;
   }
 
@@ -782,10 +921,10 @@
       body: `
         <ol class="rules-list">
           <li><strong>已确认：</strong>导航只保留组件视图，按参考截图使用页面树、页面面包屑、全开/全关和不同类型控制组件。</li>
-          <li><strong>已确认：</strong>取消独立“配电箱设备列表”菜单，将配电箱能力并入已有“设备功能”；旧地址兼容进入设备功能合并页。</li>
-          <li><strong>已确认：</strong>设备功能原有“功能名称、搜索、所有”筛选、绑定回路/功率/测试/编辑/移除/标签/导出按钮、复选框和全部原字段保持不变，只做新增；功能名称、设备备注、设备名称保留上下排序入口。</li>
-          <li><strong>已确认：</strong>设备功能左侧新增黑色、无树层级的配电箱及“未分类”；名称右侧按“在线功能点数/总功能点数”显示，选择后右侧原列表立即更新。</li>
-          <li><strong>已确认：</strong>复用设备功能已有状态列显示在线、离线、故障，故障文字红色；在“所属页面”右侧新增只读“配电箱”，不提供配电箱关系写操作。</li>
+          <li><strong>已确认：</strong>配电箱查询从“设备功能”拆出，主导航新增独立“配电箱功能查询”；旧“配电箱设备列表”地址兼容进入新查询页。</li>
+          <li><strong>已确认：</strong>设备功能恢复为原页面，保留“功能名称、搜索、所有”筛选、绑定回路/功率/测试/编辑/移除/标签/导出按钮、复选框、原字段和排序，不再显示配电箱侧栏或配电箱列。</li>
+          <li><strong>已确认：</strong>配电箱功能查询左侧先按“全部区域—楼栋—房间”树状选择区域，再展示该区域的现有配电箱和“未分类”；筛选变化后右侧立即更新。</li>
+          <li><strong>已确认：</strong>配电箱功能查询右侧只展示设备功能明细、状态汇总和故障记录，不提供勾选、控制、编辑、导出或关系写操作。</li>
           <li><strong>已确认：</strong>设备管理删除右上角“配电箱”入口及清除、新建、管理、选择等关系写操作；保留配电箱下拉自动筛选、列表末列只读展示和设备导出字段。</li>
           <li><strong>已确认：</strong>配电箱及设备关联由其他平台维护并同步，GVP 只读消费同一批同步结果；配电箱名称文字使用同步颜色或既有配置颜色，不增加颜色图标。</li>
           <li><strong>已确认：</strong>历史记录字段不变，只在设备故障消息内容中增加楼栋、房间、配电箱和 IP 地址；配电箱名称文字使用其配置颜色，不增加颜色图标。</li>
@@ -1018,9 +1157,13 @@
       render();
       return;
     }
-    if (action === "select-device-function-cabinet") {
-      state.deviceFunctions.selectedCabinetId = target.dataset.cabinetId;
-      state.deviceFunctions.page = 1;
+    if (action === "select-cabinet-area") {
+      state.cabinetFunctions.selectedAreaId = target.dataset.areaId;
+      render();
+      return;
+    }
+    if (action === "select-cabinet-query-cabinet") {
+      state.cabinetFunctions.selectedCabinetId = target.dataset.cabinetId;
       render();
       return;
     }
@@ -1197,12 +1340,11 @@
     }
     if (action === "export-device-functions") {
       const rows = filteredDeviceFunctions().map((component) => {
-        const cabinet = getCabinet(component.cabinetId);
         const status = { online: "在线", offline: "离线", fault: "故障" }[component.deviceStatus] ?? "离线";
-        return [component.name, component.type, status, component.page, component.remark, componentDeviceName(component), componentLocationPath(component), 0, 0, 0, 0, 0, 0, "", cabinet?.name ?? ""];
+        return [component.name, component.type, status, component.page, component.remark, componentDeviceName(component), componentLocationPath(component), 0, 0, 0, 0, 0, 0, ""];
       });
-      downloadCsv("设备功能-导出.csv", ["功能名称", "功能类型", "状态", "所属页面", "设备备注", "设备名称", "楼层节点", "功率(W)", "总使用寿命(小时)", "总开合次数(次)", "运行时间(小时)", "已开合次数(次)", "绑定回路数", "描述", "配电箱"], rows);
-      showToast("已导出当前设备功能筛选结果，并在原字段末尾增加配电箱", "success");
+      downloadCsv("设备功能-导出.csv", ["功能名称", "功能类型", "状态", "所属页面", "设备备注", "设备名称", "楼层节点", "功率(W)", "总使用寿命(小时)", "总开合次数(次)", "运行时间(小时)", "已开合次数(次)", "绑定回路数", "描述"], rows);
+      showToast("已按设备功能原字段导出当前筛选结果", "success");
       return;
     }
     if (action === "export-devices") {
@@ -1266,6 +1408,8 @@
       state.deviceFunctions.selected.clear();
       state.deviceFunctions.sortField = null;
       state.deviceFunctions.sortDirection = "asc";
+      state.cabinetFunctions.selectedAreaId = "all";
+      state.cabinetFunctions.selectedCabinetId = "cab-001";
       state.navigation.editorComponentId = null;
       closeModal();
       render();
@@ -1294,7 +1438,7 @@
   window.addEventListener("hashchange", render);
 
   if (!window.location.hash) {
-    window.location.hash = "device-functions";
+    window.location.hash = "cabinet-functions";
   } else {
     render();
   }

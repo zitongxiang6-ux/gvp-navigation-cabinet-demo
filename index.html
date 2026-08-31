@@ -8,14 +8,14 @@
     <meta http-equiv="Expires" content="0" />
     <meta
       name="description"
-      content="GVP 导航组件视图、设备功能配电箱分组、外部同步配电箱只读展示与历史故障定位交互 Demo"
+      content="GVP 导航组件视图、独立配电箱功能查询、设备管理只读配电箱展示与历史故障定位交互 Demo"
     />
     <meta name="gvp-demo-id" content="REQ-2026-001-004-navigation-cabinet" />
-    <meta name="gvp-demo-build" content="20260828-device-function-sort-cabinet-order" />
+    <meta name="gvp-demo-build" content="20260831-cabinet-function-query" />
     <title>GVP 导航与配电箱增强 Demo</title>
-    <link rel="stylesheet" href="./styles.css?v=20260828-device-function-sort-cabinet-order" />
-    <script src="./data.js?v=20260828-device-function-sort-cabinet-order" defer></script>
-    <script src="./app.js?v=20260828-device-function-sort-cabinet-order" defer></script>
+    <link rel="stylesheet" href="./styles.css?v=20260831-cabinet-function-query" />
+    <script src="./data.js?v=20260831-cabinet-function-query" defer></script>
+    <script src="./app.js?v=20260831-cabinet-function-query" defer></script>
   </head>
   <body>
     <svg class="svg-sprite" aria-hidden="true">
@@ -123,6 +123,9 @@
             </button>
             <button class="side-nav-item" type="button" data-page="device-functions" aria-label="设备功能">
               <svg><use href="#i-function"></use></svg>
+            </button>
+            <button class="side-nav-item" type="button" data-page="cabinet-functions" aria-label="配电箱功能查询" title="配电箱功能查询">
+              <svg><use href="#i-cabinet"></use></svg>
             </button>
             <button class="side-nav-item" type="button" data-page="history" aria-label="历史记录">
               <svg><use href="#i-clock"></use></svg>
