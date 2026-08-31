@@ -548,8 +548,7 @@
             <header class="cabinet-query-stage-header">
               <div><strong>${escapeHtml(selectedCabinet.name)}</strong><span>${escapeHtml(selectedArea.name)}</span></div>
             </header>
-            <section class="cabinet-query-section" aria-labelledby="cabinetFunctionDetailsTitle">
-              <div class="cabinet-query-section-title"><div><h2 id="cabinetFunctionDetailsTitle">设备功能明细</h2><p>选择左侧区域或配电箱后自动更新，仅供查看。</p></div></div>
+            <section class="cabinet-query-section" aria-label="设备功能明细">
               <div class="table-wrap cabinet-query-table-wrap">
                 <table class="data-table cabinet-query-table">
                   <thead><tr><th>功能名称</th><th>功能类型</th><th>状态</th><th>所属页面</th><th>配电箱</th><th>设备备注</th><th>设备名称</th><th>楼层节点</th></tr></thead>
@@ -886,7 +885,7 @@
           <li><strong>已确认：</strong>配电箱查询从“设备功能”拆出，主导航新增独立“配电箱功能查询”；旧“配电箱设备列表”地址兼容进入新查询页。</li>
           <li><strong>已确认：</strong>设备功能恢复为原页面，保留“功能名称、搜索、所有”筛选、绑定回路/功率/测试/编辑/移除/标签/导出按钮、复选框、原字段和排序，不再显示配电箱侧栏或配电箱列。</li>
           <li><strong>已确认：</strong>配电箱功能查询左侧将“全部区域—楼栋—房间”区域树与该区域的现有配电箱/“未分类”并排展示；两个筛选栏收窄，筛选变化后右侧立即更新。</li>
-          <li><strong>已确认：</strong>配电箱功能查询右侧只展示设备功能明细，不显示只读标记、状态汇总或故障记录，也不提供勾选、控制、编辑、导出或关系写操作。</li>
+          <li><strong>已确认：</strong>配电箱功能查询右侧直接展示设备功能明细表格，不显示表格标题、筛选说明、只读标记、状态汇总或故障记录，也不提供勾选、控制、编辑、导出或关系写操作。</li>
           <li><strong>已确认：</strong>设备管理删除右上角“配电箱”入口及清除、新建、管理、选择等关系写操作；保留配电箱下拉自动筛选、列表末列只读展示和设备导出字段。</li>
           <li><strong>已确认：</strong>配电箱及设备关联由其他平台维护并同步，GVP 只读消费同一批同步结果；配电箱名称文字使用同步颜色或既有配置颜色，不增加颜色图标。</li>
           <li><strong>已确认：</strong>历史记录字段不变，只在设备故障消息内容中增加楼栋、房间、配电箱和 IP 地址；配电箱名称文字使用其配置颜色，不增加颜色图标。</li>

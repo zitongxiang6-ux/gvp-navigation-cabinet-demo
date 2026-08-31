@@ -1152,34 +1152,11 @@ textarea:focus-visible,
 
 .cabinet-query-section {
   margin: 20px 24px 0;
-  padding: 0 18px 18px;
+  padding: 18px;
   overflow: hidden;
   background: #fff;
   border: 1px solid #eceef4;
   border-radius: 4px;
-}
-
-.cabinet-query-section-title {
-  display: flex;
-  min-height: 66px;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.cabinet-query-section-title h2,
-.cabinet-query-section-title p {
-  margin: 0;
-}
-
-.cabinet-query-section-title h2 {
-  color: #34384a;
-  font-size: 15px;
-}
-
-.cabinet-query-section-title p {
-  margin-top: 5px;
-  color: #999fb1;
-  font-size: 12px;
 }
 
 .cabinet-query-table {
