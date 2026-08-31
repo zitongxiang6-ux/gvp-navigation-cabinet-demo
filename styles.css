@@ -1281,6 +1281,43 @@ textarea:focus-visible,
   color: #9ca2b3;
 }
 
+.cabinet-query-export-button {
+  display: inline-flex;
+  min-width: 88px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  margin-left: auto;
+  padding: 0 16px;
+  color: #fff;
+  font-size: 12px;
+  background: #8d48e5;
+  border: 1px solid #8d48e5;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.cabinet-query-export-button:hover {
+  background: #7c3dd0;
+  border-color: #7c3dd0;
+}
+
+.cabinet-query-export-button:focus-visible {
+  outline: 2px solid rgb(141 72 229 / 28%);
+  outline-offset: 2px;
+}
+
+.cabinet-query-export-button svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .cabinet-query-section {
   margin: 20px 24px 0;
   padding: 18px;
@@ -3752,8 +3789,13 @@ textarea.form-control {
   }
 
   .cabinet-query-filter-field,
-  .cabinet-query-filter-control {
+  .cabinet-query-filter-control,
+  .cabinet-query-export-button {
     width: 100%;
+  }
+
+  .cabinet-query-export-button {
+    margin-left: 0;
   }
 
   .toolbar-group,

@@ -414,7 +414,7 @@
       </label>`;
   }
 
-  function renderCabinetFunctionQueryPage() {
+  function getCabinetFunctionQueryContext() {
     const view = state.cabinetFunctions;
     const selectedArea = areaDetails(view.selectedAreaId);
     const areaComponents = componentsInArea(selectedArea.id);
@@ -437,7 +437,19 @@
     if (view.filterField === "type" && view.filterValue && !cabinetComponents.some((component) => component.type === view.filterValue)) {
       view.filterValue = "";
     }
-    const visibleComponents = filterCabinetFunctionComponents(cabinetComponents);
+    return {
+      selectedArea,
+      areaComponents,
+      cabinetOptions,
+      selectedCabinet,
+      cabinetComponents,
+      visibleComponents: filterCabinetFunctionComponents(cabinetComponents),
+    };
+  }
+
+  function renderCabinetFunctionQueryPage() {
+    const view = state.cabinetFunctions;
+    const { selectedArea, areaComponents, cabinetOptions, selectedCabinet, cabinetComponents, visibleComponents } = getCabinetFunctionQueryContext();
     const statusLabels = { online: "在线", offline: "离线", fault: "故障" };
     const detailRows = visibleComponents.length
       ? visibleComponents
@@ -488,7 +500,7 @@
             <header class="cabinet-query-stage-header">
               <div><strong>${escapeHtml(selectedCabinet.name)}</strong><span>${escapeHtml(selectedArea.name)}</span></div>
             </header>
-            <div class="cabinet-query-toolbar" role="search" aria-label="设备功能筛选">
+            <div class="cabinet-query-toolbar" role="toolbar" aria-label="设备功能筛选与导出">
               <label class="visually-hidden" for="cabinetFunctionFilterField">筛选字段</label>
               <select id="cabinetFunctionFilterField" class="cabinet-query-filter-field" aria-label="筛选字段">
                 <option value="status"${view.filterField === "status" ? " selected" : ""}>状态</option>
@@ -498,6 +510,7 @@
                 <option value="deviceName"${view.filterField === "deviceName" ? " selected" : ""}>设备名称</option>
               </select>
               <div class="cabinet-query-filter-control">${renderCabinetFunctionFilterControl(cabinetComponents)}</div>
+              <button class="cabinet-query-export-button" type="button" data-action="export-cabinet-functions" title="导出当前筛选后的全部数据">${icon("export")}导出</button>
             </div>
             <section class="cabinet-query-section" aria-label="设备功能明细">
               <div class="table-wrap cabinet-query-table-wrap">
@@ -836,7 +849,8 @@
           <li><strong>已确认：</strong>主导航保留独立“配电箱功能查询”，删除“设备功能”菜单及整个页面；旧“设备功能”和“配电箱设备列表”地址兼容进入配电箱功能查询。</li>
           <li><strong>已确认：</strong>配电箱功能查询左侧将“天府校区—楼栋—房间”区域树与该区域的现有配电箱/“未分类”并排展示；校区和楼栋节点可分别展开/收起，点击节点名称仍立即筛选右侧内容。</li>
           <li><strong>已确认：</strong>配电箱功能查询顶部可按状态、功能名称、功能类型、设备备注和设备名称筛选；状态与功能类型使用下拉选项，其余字段使用文本输入，条件变化后立即筛选且不增加查询/重置按钮。</li>
-          <li><strong>已确认：</strong>配电箱功能查询右侧直接展示设备功能明细表格，不显示表格标题、筛选说明、只读标记、状态汇总或故障记录，也不提供勾选、控制、编辑、导出或关系写操作。</li>
+          <li><strong>已确认：</strong>配电箱功能查询右上角提供导出按钮，默认导出当前区域、配电箱和顶部条件共同筛选后的全部明细；除导出外不提供勾选、控制、编辑或关系写操作。</li>
+          <li><strong>已确认：</strong>配电箱功能查询直接展示设备功能明细表格，不显示表格标题、筛选说明、只读标记、状态汇总或故障记录。</li>
           <li><strong>已确认：</strong>设备管理删除右上角“配电箱”入口及清除、新建、管理、选择等关系写操作；保留配电箱下拉自动筛选、列表末列只读展示和设备导出字段。</li>
           <li><strong>已确认：</strong>配电箱及设备关联由其他平台维护并同步，GVP 只读消费同一批同步结果；配电箱名称文字使用同步颜色或既有配置颜色，不增加颜色图标。</li>
           <li><strong>已确认：</strong>历史记录字段不变，只在设备故障消息内容中增加楼栋、房间、配电箱和 IP 地址；配电箱名称文字使用其配置颜色，不增加颜色图标。</li>
@@ -1226,6 +1240,26 @@
     if (action === "clear-device-selection") {
       state.devices.selected.clear();
       render();
+      return;
+    }
+    if (action === "export-cabinet-functions") {
+      const { visibleComponents } = getCabinetFunctionQueryContext();
+      const statusLabels = { online: "在线", offline: "离线", fault: "故障" };
+      const rows = visibleComponents.map((component) => {
+        const cabinet = getCabinet(component.cabinetId);
+        return [
+          component.name,
+          component.type,
+          statusLabels[component.deviceStatus] ?? "离线",
+          component.page,
+          cabinet?.name ?? "",
+          component.remark,
+          componentDeviceName(component),
+          componentLocationPath(component),
+        ];
+      });
+      downloadCsv("配电箱功能查询-筛选结果.csv", ["功能名称", "功能类型", "状态", "所属页面", "配电箱", "设备备注", "设备名称", "楼层节点"], rows);
+      showToast(`已导出当前筛选后的全部数据，共 ${rows.length} 条`, "success");
       return;
     }
     if (action === "export-devices") {
