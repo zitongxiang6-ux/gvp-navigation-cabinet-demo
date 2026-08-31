@@ -1174,137 +1174,6 @@ textarea:focus-visible,
   min-height: 92px;
 }
 
-.device-function-panel {
-  padding: 0;
-  overflow: hidden;
-}
-
-.device-function-stage {
-  background: #fff;
-}
-
-.device-function-toolbar,
-.device-function-filters,
-.device-function-actions {
-  display: flex;
-  align-items: center;
-}
-
-.device-function-toolbar {
-  min-height: 80px;
-  justify-content: space-between;
-  gap: 20px;
-  padding: 16px 20px;
-  border-bottom: 1px solid #eceef4;
-}
-
-.device-function-filters,
-.device-function-actions {
-  gap: 14px;
-}
-
-.device-function-filters select,
-.device-function-filters .reference-search {
-  height: 34px;
-  color: #4a5068;
-  background: #fff;
-  border: 1px solid #aeb5d0;
-  border-radius: 3px;
-}
-
-.device-function-filters select {
-  min-width: 100px;
-  padding: 0 32px 0 10px;
-}
-
-.device-function-filters .reference-search {
-  width: 220px;
-}
-
-.device-function-actions button {
-  display: inline-flex;
-  height: 34px;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 0 8px;
-  color: #8c6ac6;
-  white-space: nowrap;
-  background: transparent;
-  border: 0;
-  cursor: pointer;
-  font-size: 12px;
-}
-
-.device-function-actions button:nth-child(1) { color: #66b9ff; }
-.device-function-actions button:nth-child(2) { color: #b289f5; }
-.device-function-actions button:nth-child(3) { color: #63cfd4; }
-.device-function-actions button:nth-child(4) { color: #73c48f; }
-.device-function-actions button:nth-child(5) { color: #e6bd40; }
-.device-function-actions button:nth-child(6) { color: #ff8c54; }
-
-.device-function-actions button svg {
-  width: 18px;
-  height: 18px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.8;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.device-function-actions .reference-export-button {
-  min-width: 88px;
-  padding: 0 16px;
-  color: #fff;
-  background: #8d48e5;
-  border: 1px solid #8d48e5;
-  border-radius: 3px;
-}
-
-.device-function-page .cabinet-device-table-panel {
-  padding: 0 16px 22px;
-}
-
-.device-function-table-wrap {
-  border-radius: 0;
-}
-
-.data-table.device-function-table {
-  min-width: 2110px;
-}
-
-.device-function-table th,
-.device-function-table td {
-  height: 48px;
-  padding: 8px 12px;
-  font-size: 12px;
-}
-
-.device-function-table th {
-  line-height: 1.45;
-  white-space: normal;
-}
-
-.device-function-table th:nth-child(2),
-.device-function-table td:nth-child(2) { width: 120px; }
-.device-function-table th:nth-child(3),
-.device-function-table td:nth-child(3) { width: 98px; }
-.device-function-table th:nth-child(4),
-.device-function-table td:nth-child(4) { width: 86px; }
-.device-function-table th:nth-child(5),
-.device-function-table td:nth-child(5) { width: 140px; }
-.device-function-table th:nth-child(6),
-.device-function-table td:nth-child(6) { width: 130px; }
-.device-function-table th:nth-child(7),
-.device-function-table td:nth-child(7) { width: 140px; }
-.device-function-table th:nth-child(8),
-.device-function-table td:nth-child(8) { width: 150px; }
-.device-function-table th:nth-child(n+9):nth-child(-n+14),
-.device-function-table td:nth-child(n+9):nth-child(-n+14) { width: 102px; }
-.device-function-table th:nth-child(15),
-.device-function-table td:nth-child(15) { width: 140px; }
-
 .cabinet-device-remark {
   margin-left: 8px;
   color: #9399ad;
@@ -3407,16 +3276,6 @@ textarea.form-control {
     justify-content: flex-end;
   }
 
-  .device-function-toolbar {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .device-function-actions {
-    width: 100%;
-    justify-content: flex-end;
-  }
-
   .component-workbench {
     grid-template-columns: 220px minmax(0, 1fr);
   }
@@ -3500,13 +3359,6 @@ textarea.form-control {
   }
 
   .device-reference-actions {
-    justify-content: flex-start;
-  }
-
-  .device-function-filters,
-  .device-function-actions {
-    width: 100%;
-    flex-wrap: wrap;
     justify-content: flex-start;
   }
 
@@ -3788,24 +3640,6 @@ textarea.form-control {
   .device-reference-actions {
     display: grid;
     grid-template-columns: 1fr 1fr;
-  }
-
-  .device-function-toolbar {
-    padding: 12px;
-  }
-
-  .device-function-filters select,
-  .device-function-filters .reference-search {
-    width: 100%;
-  }
-
-  .device-function-actions {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .device-function-actions button {
-    width: 100%;
   }
 
   .cabinet-action-menu {

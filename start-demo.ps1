@@ -5,7 +5,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $demoRoot = (Resolve-Path -LiteralPath $PSScriptRoot).Path
-$demoBuild = '20260831-cabinet-table-only'
+$demoBuild = '20260831-remove-device-functions'
 $demoUrl = "http://127.0.0.1:$Port/?v=$demoBuild#cabinet-functions"
 
 function Test-DemoAvailable {

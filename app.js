@@ -18,15 +18,6 @@
       selectedLocation: "room-a102",
       editorComponentId: null,
     },
-    deviceFunctions: {
-      appliedKeyword: "",
-      appliedType: "all",
-      sortField: null,
-      sortDirection: "asc",
-      page: 1,
-      pageSize: 10,
-      selected: new Set(),
-    },
     cabinetFunctions: {
       selectedAreaId: "all",
       selectedCabinetId: "cab-001",
@@ -48,13 +39,11 @@
     },
   };
 
-  let deviceFunctionFilterTimer = null;
   let deviceFilterTimer = null;
 
   const pageNames = {
     overview: "首页",
     navigation: "导航",
-    "device-functions": "设备功能",
     "cabinet-functions": "配电箱功能查询",
     history: "历史记录",
     devices: "设备管理",
@@ -62,11 +51,11 @@
 
   function getPageFromHash() {
     const value = window.location.hash.replace(/^#/, "");
-    if (value === "cabinet-devices") {
+    if (["cabinet-devices", "device-functions"].includes(value)) {
       window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}#cabinet-functions`);
       return "cabinet-functions";
     }
-    const validPages = ["overview", "navigation", "device-functions", "cabinet-functions", "history", "devices"];
+    const validPages = ["overview", "navigation", "cabinet-functions", "history", "devices"];
     return validPages.includes(value) ? value : "cabinet-functions";
   }
 
@@ -96,56 +85,6 @@
       options.push("</optgroup>");
     }
     return options.join("");
-  }
-
-  function componentTypes() {
-    return [...new Set(model.components.map((item) => item.type))].sort((a, b) => a.localeCompare(b, "zh-CN"));
-  }
-
-  function filteredDeviceFunctions() {
-    const view = state.deviceFunctions;
-    const keyword = view.appliedKeyword.trim().toLocaleLowerCase("zh-CN");
-    const filtered = model.components.filter(
-      (item) =>
-        (view.appliedType === "all" || item.type === view.appliedType) &&
-        (!keyword || item.name.toLocaleLowerCase("zh-CN").includes(keyword)),
-    );
-    if (!view.sortField) return filtered;
-
-    const sortValues = {
-      name: (item) => item.name,
-      remark: (item) => item.remark,
-      deviceName: (item) => componentDeviceName(item),
-    };
-    const getSortValue = sortValues[view.sortField];
-    if (!getSortValue) return filtered;
-
-    const direction = view.sortDirection === "desc" ? -1 : 1;
-    return filtered
-      .map((item, index) => ({ item, index }))
-      .sort((left, right) => {
-        const comparison = String(getSortValue(left.item) ?? "").localeCompare(String(getSortValue(right.item) ?? ""), "zh-CN", {
-          numeric: true,
-          sensitivity: "base",
-        });
-        return comparison === 0 ? left.index - right.index : comparison * direction;
-      })
-      .map(({ item }) => item);
-  }
-
-  function deviceFunctionSortHeader(label, sortField) {
-    const view = state.deviceFunctions;
-    const active = view.sortField === sortField;
-    const direction = active ? view.sortDirection : null;
-    const ariaSort = direction === "asc" ? "ascending" : direction === "desc" ? "descending" : "none";
-    const nextDirection = active && direction === "asc" ? "降序" : "升序";
-    return `
-      <th aria-sort="${ariaSort}">
-        <button class="sort-button${active ? ` active ${direction}` : ""}" type="button" data-action="sort-device-functions" data-sort-field="${sortField}" aria-label="${label}，点击按${nextDirection}排列" title="按${label}${nextDirection}排列">
-          <span>${label}</span>
-          <span class="sort-glyph" aria-hidden="true"><i class="sort-glyph-up"></i><i class="sort-glyph-down"></i></span>
-        </button>
-      </th>`;
   }
 
   function getComponent(id) {
@@ -327,9 +266,6 @@
       case "navigation":
         app.innerHTML = state.navigation.editorComponentId ? renderComponentEditorPage() : renderNavigationPage();
         break;
-      case "device-functions":
-        app.innerHTML = renderDeviceFunctionPage();
-        break;
       case "cabinet-functions":
         app.innerHTML = renderCabinetFunctionQueryPage();
         break;
@@ -362,82 +298,6 @@
   function componentDeviceName(component) {
     const suffix = String(component.id).replace(/\D/g, "").padStart(3, "0");
     return `MDL64-BP-${suffix}`;
-  }
-
-  function renderDeviceFunctionPage() {
-    const view = state.deviceFunctions;
-    const filtered = filteredDeviceFunctions();
-    const totalPages = Math.max(1, Math.ceil(filtered.length / view.pageSize));
-    if (view.page > totalPages) view.page = totalPages;
-    const pageItems = filtered.slice((view.page - 1) * view.pageSize, view.page * view.pageSize);
-    const statusLabels = { online: "在线", offline: "离线", fault: "故障" };
-    const allPageSelected = pageItems.length > 0 && pageItems.every((item) => view.selected.has(item.id));
-
-    const rows = pageItems.length
-      ? pageItems
-          .map((item) => {
-            const selected = view.selected.has(item.id);
-            return `
-              <tr>
-                <td class="checkbox-cell"><input class="table-checkbox" type="checkbox" data-action="select-device-function" data-id="${item.id}"${selected ? " checked" : ""} aria-label="选择 ${escapeHtml(item.name)}"></td>
-                <td title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</td>
-                <td>${escapeHtml(item.type)}</td>
-                <td><span class="device-status-text ${escapeHtml(item.deviceStatus)}">${statusLabels[item.deviceStatus] ?? "离线"}</span></td>
-                <td>${escapeHtml(item.page)}</td>
-                <td title="${escapeHtml(item.remark)}">${escapeHtml(item.remark)}</td>
-                <td title="${escapeHtml(componentDeviceName(item))}">${escapeHtml(componentDeviceName(item))}</td>
-                <td title="${escapeHtml(componentLocationPath(item))}">${escapeHtml(componentLocationPath(item))}</td>
-                <td>0</td>
-                <td>0</td>
-                <td>0</td>
-                <td>0</td>
-                <td>0</td>
-                <td>0</td>
-                <td></td>
-              </tr>`;
-          })
-          .join("")
-      : `<tr><td colspan="15"><div class="empty-state"><div><strong>没有匹配的设备功能</strong>请调整功能名称或功能类型</div></div></td></tr>`;
-
-    return `
-      <section class="page device-function-page">
-        <div class="page-panel device-function-panel">
-          <div class="device-function-toolbar">
-            <div class="device-function-filters">
-              <select id="deviceFunctionField" aria-label="搜索字段"><option value="name">功能名称</option></select>
-              <div class="reference-search">
-                ${icon("search")}
-                <input id="deviceFunctionKeyword" value="${escapeHtml(view.appliedKeyword)}" placeholder="搜索" autocomplete="off" />
-              </div>
-              <select id="deviceFunctionType" aria-label="功能类型">
-                <option value="all">所有</option>
-                ${componentTypes().map((type) => `<option value="${escapeHtml(type)}"${view.appliedType === type ? " selected" : ""}>${escapeHtml(type)}</option>`).join("")}
-              </select>
-            </div>
-            <div class="device-function-actions" aria-label="设备功能操作">
-              <button type="button" data-action="device-function-action" data-name="绑定回路">${icon("manage")}绑定回路</button>
-              <button type="button" data-action="device-function-action" data-name="功率">${icon("power")}功率</button>
-              <button type="button" data-action="device-function-action" data-name="测试">${icon("refresh")}测试</button>
-              <button type="button" data-action="device-function-action" data-name="编辑">${icon("edit")}编辑</button>
-              <button type="button" data-action="device-function-action" data-name="移除">${icon("minus")}移除</button>
-              <button type="button" data-action="device-function-action" data-name="标签">${icon("list")}标签</button>
-              <button class="reference-export-button" type="button" data-action="export-device-functions">${icon("export")}导出</button>
-            </div>
-          </div>
-          <div class="cabinet-device-table-panel">
-            <div class="table-wrap device-function-table-wrap">
-              <table class="data-table cabinet-device-table device-function-table">
-                <thead><tr>
-                  <th class="checkbox-cell"><input class="table-checkbox" type="checkbox" data-action="select-all-device-functions"${allPageSelected ? " checked" : ""} aria-label="选择本页全部设备功能"></th>
-                  ${deviceFunctionSortHeader("功能名称", "name")}<th>功能类型</th><th>状态</th><th>所属页面</th>${deviceFunctionSortHeader("设备备注", "remark")}${deviceFunctionSortHeader("设备名称", "deviceName")}<th>楼层节点</th><th>功率<br>(W)</th><th>总使用寿命<br>(小时)</th><th>总开合次数<br>(次)</th><th>运行时间<br>(小时)</th><th>已开合次数<br>(次)</th><th>绑定回路数</th><th>描述</th>
-                </tr></thead>
-                <tbody>${rows}</tbody>
-              </table>
-            </div>
-            ${pagerHtml(filtered.length, view.page, view.pageSize, "deviceFunctions")}
-          </div>
-        </div>
-      </section>`;
   }
 
   function areaDetails(areaId) {
@@ -855,7 +715,7 @@
   function renderPlaceholderPage(page) {
     return `
       <section class="placeholder-page">
-        <div><strong>${escapeHtml(pageNames[page] ?? "页面")}</strong>本次 Demo 只实现导航、设备功能、配电箱功能查询、设备管理只读配电箱信息和历史记录。</div>
+        <div><strong>${escapeHtml(pageNames[page] ?? "页面")}</strong>本次 Demo 只实现导航、配电箱功能查询、设备管理只读配电箱信息和历史记录。</div>
       </section>`;
   }
 
@@ -882,8 +742,7 @@
       body: `
         <ol class="rules-list">
           <li><strong>已确认：</strong>导航只保留组件视图，按参考截图使用页面树、页面面包屑、全开/全关和不同类型控制组件。</li>
-          <li><strong>已确认：</strong>配电箱查询从“设备功能”拆出，主导航新增独立“配电箱功能查询”；旧“配电箱设备列表”地址兼容进入新查询页。</li>
-          <li><strong>已确认：</strong>设备功能恢复为原页面，保留“功能名称、搜索、所有”筛选、绑定回路/功率/测试/编辑/移除/标签/导出按钮、复选框、原字段和排序，不再显示配电箱侧栏或配电箱列。</li>
+          <li><strong>已确认：</strong>主导航保留独立“配电箱功能查询”，删除“设备功能”菜单及整个页面；旧“设备功能”和“配电箱设备列表”地址兼容进入配电箱功能查询。</li>
           <li><strong>已确认：</strong>配电箱功能查询左侧将“全部区域—楼栋—房间”区域树与该区域的现有配电箱/“未分类”并排展示；两个筛选栏收窄，筛选变化后右侧立即更新。</li>
           <li><strong>已确认：</strong>配电箱功能查询右侧直接展示设备功能明细表格，不显示表格标题、筛选说明、只读标记、状态汇总或故障记录，也不提供勾选、控制、编辑、导出或关系写操作。</li>
           <li><strong>已确认：</strong>设备管理删除右上角“配电箱”入口及清除、新建、管理、选择等关系写操作；保留配电箱下拉自动筛选、列表末列只读展示和设备导出字段。</li>
@@ -1009,45 +868,12 @@
       pageItems.forEach((item) => (target.checked ? state.devices.selected.add(item.id) : state.devices.selected.delete(item.id)));
       render();
     }
-    if (target.matches('[data-action="select-device-function"]')) {
-      const id = target.dataset.id;
-      if (target.checked) state.deviceFunctions.selected.add(id);
-      else state.deviceFunctions.selected.delete(id);
-      render();
-    }
-    if (target.matches('[data-action="select-all-device-functions"]')) {
-      const filtered = filteredDeviceFunctions();
-      const pageItems = filtered.slice((state.deviceFunctions.page - 1) * state.deviceFunctions.pageSize, state.deviceFunctions.page * state.deviceFunctions.pageSize);
-      pageItems.forEach((item) => (target.checked ? state.deviceFunctions.selected.add(item.id) : state.deviceFunctions.selected.delete(item.id)));
-      render();
-    }
-    if (target.id === "deviceFunctionType") {
-      state.deviceFunctions.appliedType = target.value;
-      state.deviceFunctions.page = 1;
-      render();
-    }
     if (["historyType", "historyDate"].includes(target.id)) applyHistoryFilter();
     if (["deviceFilterField", "deviceType", "deviceCabinet"].includes(target.id)) applyDeviceFilter();
   });
 
   document.addEventListener("input", (event) => {
     const target = event.target;
-    if (target.id === "deviceFunctionKeyword") {
-      state.deviceFunctions.appliedKeyword = target.value.trim();
-      state.deviceFunctions.page = 1;
-      window.clearTimeout(deviceFunctionFilterTimer);
-      deviceFunctionFilterTimer = window.setTimeout(() => {
-        render();
-        requestAnimationFrame(() => {
-          const input = document.getElementById("deviceFunctionKeyword");
-          if (input) {
-            input.focus();
-            input.setSelectionRange(input.value.length, input.value.length);
-          }
-        });
-      }, 250);
-      return;
-    }
     if (target.id === "deviceKeyword") {
       state.devices.appliedKeyword = target.value.trim();
       state.devices.page = 1;
@@ -1125,20 +951,6 @@
     }
     if (action === "select-cabinet-query-cabinet") {
       state.cabinetFunctions.selectedCabinetId = target.dataset.cabinetId;
-      render();
-      return;
-    }
-    if (action === "sort-device-functions") {
-      const sortField = target.dataset.sortField;
-      if (!["name", "remark", "deviceName"].includes(sortField)) return;
-      const view = state.deviceFunctions;
-      if (view.sortField === sortField) {
-        view.sortDirection = view.sortDirection === "asc" ? "desc" : "asc";
-      } else {
-        view.sortField = sortField;
-        view.sortDirection = "asc";
-      }
-      view.page = 1;
       render();
       return;
     }
@@ -1290,24 +1102,6 @@
       render();
       return;
     }
-    if (action === "device-function-action") {
-      const count = state.deviceFunctions.selected.size;
-      if (!count) {
-        showToast(`请先选择设备功能，再执行“${target.dataset.name}”`, "warning");
-      } else {
-        showToast(`已保留原“${target.dataset.name}”入口，当前选中 ${count} 个设备功能`, "success");
-      }
-      return;
-    }
-    if (action === "export-device-functions") {
-      const rows = filteredDeviceFunctions().map((component) => {
-        const status = { online: "在线", offline: "离线", fault: "故障" }[component.deviceStatus] ?? "离线";
-        return [component.name, component.type, status, component.page, component.remark, componentDeviceName(component), componentLocationPath(component), 0, 0, 0, 0, 0, 0, ""];
-      });
-      downloadCsv("设备功能-导出.csv", ["功能名称", "功能类型", "状态", "所属页面", "设备备注", "设备名称", "楼层节点", "功率(W)", "总使用寿命(小时)", "总开合次数(次)", "运行时间(小时)", "已开合次数(次)", "绑定回路数", "描述"], rows);
-      showToast("已按设备功能原字段导出当前筛选结果", "success");
-      return;
-    }
     if (action === "export-devices") {
       const rows = filteredDevices().map((device) => {
         const cabinet = displayCabinet(device);
@@ -1366,9 +1160,6 @@
     if (action === "reset-demo") {
       model = window.GVP_DEMO_DATA.create();
       state.devices.selected.clear();
-      state.deviceFunctions.selected.clear();
-      state.deviceFunctions.sortField = null;
-      state.deviceFunctions.sortDirection = "asc";
       state.cabinetFunctions.selectedAreaId = "all";
       state.cabinetFunctions.selectedCabinetId = "cab-001";
       state.navigation.editorComponentId = null;
