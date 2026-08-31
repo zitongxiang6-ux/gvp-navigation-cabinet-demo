@@ -21,6 +21,7 @@
     cabinetFunctions: {
       selectedAreaId: "all",
       selectedCabinetId: "cab-001",
+      expandedAreaIds: new Set(["all", ...model.locations.map((building) => building.id)]),
       filterField: "name",
       filterValue: "",
     },
@@ -305,7 +306,7 @@
 
   function areaDetails(areaId) {
     if (areaId === "all") {
-      return { id: "all", name: "全部区域", roomIds: model.locations.flatMap((building) => building.rooms.map((room) => room.id)) };
+      return { id: "all", name: "天府校区", roomIds: model.locations.flatMap((building) => building.rooms.map((room) => room.id)) };
     }
     const building = model.locations.find((item) => item.id === areaId);
     if (building) return { id: building.id, name: building.name, roomIds: building.rooms.map((room) => room.id) };
@@ -322,22 +323,43 @@
   }
 
   function renderCabinetAreaTree(selectedAreaId) {
+    const expandedAreaIds = state.cabinetFunctions.expandedAreaIds;
+    const rootExpanded = expandedAreaIds.has("all");
     return `
       <div class="cabinet-area-tree" role="tree" aria-label="区域树">
-        <button class="cabinet-area-node root${selectedAreaId === "all" ? " active" : ""}" type="button" role="treeitem" aria-selected="${selectedAreaId === "all"}" data-action="select-cabinet-area" data-area-id="all"><span aria-hidden="true">⌄</span>全部区域</button>
-        ${model.locations
-          .map(
-            (building) => `
-              <div class="cabinet-area-group" role="group">
-                <button class="cabinet-area-node building${selectedAreaId === building.id ? " active" : ""}" type="button" role="treeitem" aria-selected="${selectedAreaId === building.id}" data-action="select-cabinet-area" data-area-id="${building.id}"><span aria-hidden="true">⌄</span>${escapeHtml(building.name)}</button>
-                ${building.rooms
-                  .map(
-                    (room) => `<button class="cabinet-area-node room${selectedAreaId === room.id ? " active" : ""}" type="button" role="treeitem" aria-selected="${selectedAreaId === room.id}" data-action="select-cabinet-area" data-area-id="${room.id}">${escapeHtml(room.name)}</button>`,
-                  )
+        <div class="cabinet-area-node root${selectedAreaId === "all" ? " active" : ""}" role="treeitem" aria-selected="${selectedAreaId === "all"}" aria-expanded="${rootExpanded}">
+          <button class="cabinet-area-toggle" type="button" data-action="toggle-cabinet-area" data-area-id="all" aria-expanded="${rootExpanded}" aria-label="${rootExpanded ? "收起" : "展开"}天府校区"><span aria-hidden="true">›</span></button>
+          <button class="cabinet-area-select" type="button" data-action="select-cabinet-area" data-area-id="all">天府校区</button>
+        </div>
+        ${
+          rootExpanded
+            ? `<div class="cabinet-area-children" role="group">
+                ${model.locations
+                  .map((building) => {
+                    const buildingExpanded = expandedAreaIds.has(building.id);
+                    return `
+                      <div class="cabinet-area-group">
+                        <div class="cabinet-area-node building${selectedAreaId === building.id ? " active" : ""}" role="treeitem" aria-selected="${selectedAreaId === building.id}" aria-expanded="${buildingExpanded}">
+                          <button class="cabinet-area-toggle" type="button" data-action="toggle-cabinet-area" data-area-id="${building.id}" aria-expanded="${buildingExpanded}" aria-label="${buildingExpanded ? "收起" : "展开"}${escapeHtml(building.name)}"><span aria-hidden="true">›</span></button>
+                          <button class="cabinet-area-select" type="button" data-action="select-cabinet-area" data-area-id="${building.id}">${escapeHtml(building.name)}</button>
+                        </div>
+                        ${
+                          buildingExpanded
+                            ? `<div class="cabinet-area-rooms" role="group">
+                                ${building.rooms
+                                  .map(
+                                    (room) => `<button class="cabinet-area-node room${selectedAreaId === room.id ? " active" : ""}" type="button" role="treeitem" aria-selected="${selectedAreaId === room.id}" data-action="select-cabinet-area" data-area-id="${room.id}">${escapeHtml(room.name)}</button>`,
+                                  )
+                                  .join("")}
+                              </div>`
+                            : ""
+                        }
+                      </div>`;
+                  })
                   .join("")}
-              </div>`,
-          )
-          .join("")}
+              </div>`
+            : ""
+        }
       </div>`;
   }
 
@@ -812,7 +834,7 @@
         <ol class="rules-list">
           <li><strong>已确认：</strong>导航只保留组件视图，按参考截图使用页面树、页面面包屑、全开/全关和不同类型控制组件。</li>
           <li><strong>已确认：</strong>主导航保留独立“配电箱功能查询”，删除“设备功能”菜单及整个页面；旧“设备功能”和“配电箱设备列表”地址兼容进入配电箱功能查询。</li>
-          <li><strong>已确认：</strong>配电箱功能查询左侧将“全部区域—楼栋—房间”区域树与该区域的现有配电箱/“未分类”并排展示；两个筛选栏收窄，筛选变化后右侧立即更新。</li>
+          <li><strong>已确认：</strong>配电箱功能查询左侧将“天府校区—楼栋—房间”区域树与该区域的现有配电箱/“未分类”并排展示；校区和楼栋节点可分别展开/收起，点击节点名称仍立即筛选右侧内容。</li>
           <li><strong>已确认：</strong>配电箱功能查询顶部可按状态、功能名称、功能类型、设备备注和设备名称筛选；状态与功能类型使用下拉选项，其余字段使用文本输入，条件变化后立即筛选且不增加查询/重置按钮。</li>
           <li><strong>已确认：</strong>配电箱功能查询右侧直接展示设备功能明细表格，不显示表格标题、筛选说明、只读标记、状态汇总或故障记录，也不提供勾选、控制、编辑、导出或关系写操作。</li>
           <li><strong>已确认：</strong>设备管理删除右上角“配电箱”入口及清除、新建、管理、选择等关系写操作；保留配电箱下拉自动筛选、列表末列只读展示和设备导出字段。</li>
@@ -1040,6 +1062,14 @@
       render();
       return;
     }
+    if (action === "toggle-cabinet-area") {
+      const areaId = target.dataset.areaId;
+      const expandedAreaIds = state.cabinetFunctions.expandedAreaIds;
+      if (expandedAreaIds.has(areaId)) expandedAreaIds.delete(areaId);
+      else expandedAreaIds.add(areaId);
+      render();
+      return;
+    }
     if (action === "select-cabinet-area") {
       state.cabinetFunctions.selectedAreaId = target.dataset.areaId;
       render();
@@ -1258,6 +1288,7 @@
       state.devices.selected.clear();
       state.cabinetFunctions.selectedAreaId = "all";
       state.cabinetFunctions.selectedCabinetId = "cab-001";
+      state.cabinetFunctions.expandedAreaIds = new Set(["all", ...model.locations.map((building) => building.id)]);
       state.cabinetFunctions.filterField = "name";
       state.cabinetFunctions.filterValue = "";
       state.navigation.editorComponentId = null;
