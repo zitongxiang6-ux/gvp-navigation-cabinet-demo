@@ -458,14 +458,6 @@
     return model.components.filter((component) => roomIds.has(component.roomId));
   }
 
-  function historyMatchesArea(entry, areaId) {
-    if (areaId === "all") return true;
-    const building = model.locations.find((item) => item.id === areaId);
-    if (building) return entry.message.includes(building.name);
-    const room = model.locations.flatMap((item) => item.rooms).find((item) => item.id === areaId);
-    return room ? entry.message.includes(room.name) : false;
-  }
-
   function renderCabinetAreaTree(selectedAreaId) {
     return `
       <div class="cabinet-area-tree" role="tree" aria-label="区域树">
@@ -507,9 +499,6 @@
       selectedCabinet.id === "unclassified" ? !component.cabinetId : component.cabinetId === selectedCabinet.id,
     );
     const statusLabels = { online: "在线", offline: "离线", fault: "故障" };
-    const onlineCount = visibleComponents.filter((component) => component.deviceStatus === "online").length;
-    const offlineCount = visibleComponents.filter((component) => component.deviceStatus === "offline").length;
-    const faultCount = visibleComponents.filter((component) => component.deviceStatus === "fault").length;
     const detailRows = visibleComponents.length
       ? visibleComponents
           .map((component) => {
@@ -529,16 +518,6 @@
           .join("")
       : `<tr><td colspan="8"><div class="empty-state"><div><strong>暂无设备功能明细</strong>当前区域与配电箱下没有匹配数据</div></div></td></tr>`;
 
-    const faultEntries = model.history.filter(
-      (entry) =>
-        entry.type === "设备故障" &&
-        historyMatchesArea(entry, selectedArea.id) &&
-        (selectedCabinet.id === "unclassified" ? !entry.cabinetId : entry.cabinetId === selectedCabinet.id),
-    );
-    const currentFaults = visibleComponents.filter((component) => component.deviceStatus === "fault");
-    const faultRows = currentFaults.length || faultEntries.length
-      ? `${currentFaults.map((component) => `<tr><td>当前状态</td><td class="message-content"><strong>${escapeHtml(component.name)}</strong>：当前设备功能状态为故障</td></tr>`).join("")}${faultEntries.map((entry) => `<tr><td>${escapeHtml(entry.at)}</td><td class="message-content">${formatHistoryMessage(entry)}</td></tr>`).join("")}`
-      : `<tr><td colspan="2"><div class="empty-state compact"><div><strong>暂无故障记录</strong>当前区域与配电箱没有匹配的设备故障</div></div></td></tr>`;
     const cabinetOptionMarkup = cabinetOptions.length
       ? cabinetOptions
           .map((option) => {
@@ -556,42 +535,25 @@
       <section class="page cabinet-device-page cabinet-query-page">
         <div class="cabinet-device-workbench cabinet-query-workbench">
           <aside class="cabinet-device-explorer cabinet-query-explorer" aria-label="区域与配电箱筛选">
-            <div class="cabinet-query-filter-section">
+            <section class="cabinet-query-filter-section cabinet-area-filter-section">
               <div class="cabinet-device-explorer-header">区域</div>
               ${renderCabinetAreaTree(selectedArea.id)}
-            </div>
-            <div class="cabinet-query-filter-section cabinet-filter-section">
+            </section>
+            <section class="cabinet-query-filter-section cabinet-filter-section">
               <div class="cabinet-device-explorer-header">配电箱</div>
               <div class="cabinet-device-options">${cabinetOptionMarkup}</div>
-            </div>
+            </section>
           </aside>
           <section class="cabinet-device-stage cabinet-query-stage">
             <header class="cabinet-query-stage-header">
               <div><strong>${escapeHtml(selectedCabinet.name)}</strong><span>${escapeHtml(selectedArea.name)}</span></div>
-              <span class="read-only-badge">只读查询</span>
             </header>
-            <div class="cabinet-query-summary" aria-label="设备功能状态汇总">
-              <div><span>功能总数</span><strong>${visibleComponents.length}</strong></div>
-              <div><span>在线</span><strong>${onlineCount}</strong></div>
-              <div><span>离线</span><strong>${offlineCount}</strong></div>
-              <div class="fault"><span>故障</span><strong>${faultCount}</strong></div>
-            </div>
             <section class="cabinet-query-section" aria-labelledby="cabinetFunctionDetailsTitle">
               <div class="cabinet-query-section-title"><div><h2 id="cabinetFunctionDetailsTitle">设备功能明细</h2><p>选择左侧区域或配电箱后自动更新，仅供查看。</p></div></div>
               <div class="table-wrap cabinet-query-table-wrap">
                 <table class="data-table cabinet-query-table">
                   <thead><tr><th>功能名称</th><th>功能类型</th><th>状态</th><th>所属页面</th><th>配电箱</th><th>设备备注</th><th>设备名称</th><th>楼层节点</th></tr></thead>
                   <tbody>${detailRows}</tbody>
-                </table>
-              </div>
-            </section>
-            <section class="cabinet-query-section" aria-labelledby="cabinetFaultsTitle">
-              <div class="cabinet-query-section-title"><div><h2 id="cabinetFaultsTitle">故障记录</h2><p>仅展示当前区域与配电箱关联的设备故障。</p></div></div>
-              <div class="table-wrap">
-                <table class="data-table cabinet-query-fault-table">
-                  <colgroup><col style="width:190px"><col></colgroup>
-                  <thead><tr><th>日期和时间</th><th>故障信息</th></tr></thead>
-                  <tbody>${faultRows}</tbody>
                 </table>
               </div>
             </section>
@@ -923,8 +885,8 @@
           <li><strong>已确认：</strong>导航只保留组件视图，按参考截图使用页面树、页面面包屑、全开/全关和不同类型控制组件。</li>
           <li><strong>已确认：</strong>配电箱查询从“设备功能”拆出，主导航新增独立“配电箱功能查询”；旧“配电箱设备列表”地址兼容进入新查询页。</li>
           <li><strong>已确认：</strong>设备功能恢复为原页面，保留“功能名称、搜索、所有”筛选、绑定回路/功率/测试/编辑/移除/标签/导出按钮、复选框、原字段和排序，不再显示配电箱侧栏或配电箱列。</li>
-          <li><strong>已确认：</strong>配电箱功能查询左侧先按“全部区域—楼栋—房间”树状选择区域，再展示该区域的现有配电箱和“未分类”；筛选变化后右侧立即更新。</li>
-          <li><strong>已确认：</strong>配电箱功能查询右侧只展示设备功能明细、状态汇总和故障记录，不提供勾选、控制、编辑、导出或关系写操作。</li>
+          <li><strong>已确认：</strong>配电箱功能查询左侧将“全部区域—楼栋—房间”区域树与该区域的现有配电箱/“未分类”并排展示；两个筛选栏收窄，筛选变化后右侧立即更新。</li>
+          <li><strong>已确认：</strong>配电箱功能查询右侧只展示设备功能明细，不显示只读标记、状态汇总或故障记录，也不提供勾选、控制、编辑、导出或关系写操作。</li>
           <li><strong>已确认：</strong>设备管理删除右上角“配电箱”入口及清除、新建、管理、选择等关系写操作；保留配电箱下拉自动筛选、列表末列只读展示和设备导出字段。</li>
           <li><strong>已确认：</strong>配电箱及设备关联由其他平台维护并同步，GVP 只读消费同一批同步结果；配电箱名称文字使用同步颜色或既有配置颜色，不增加颜色图标。</li>
           <li><strong>已确认：</strong>历史记录字段不变，只在设备故障消息内容中增加楼栋、房间、配电箱和 IP 地址；配电箱名称文字使用其配置颜色，不增加颜色图标。</li>
