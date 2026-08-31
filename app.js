@@ -21,6 +21,8 @@
     cabinetFunctions: {
       selectedAreaId: "all",
       selectedCabinetId: "cab-001",
+      filterField: "name",
+      filterValue: "",
     },
     devices: {
       filterField: "remark",
@@ -39,6 +41,7 @@
     },
   };
 
+  let cabinetFunctionFilterTimer = null;
   let deviceFilterTimer = null;
 
   const pageNames = {
@@ -338,6 +341,57 @@
       </div>`;
   }
 
+  function filterCabinetFunctionComponents(components) {
+    const view = state.cabinetFunctions;
+    const value = view.filterValue.trim();
+    if (!value) return components;
+    if (view.filterField === "status") return components.filter((component) => component.deviceStatus === value);
+    if (view.filterField === "type") return components.filter((component) => component.type === value);
+
+    const keyword = value.toLocaleLowerCase("zh-CN");
+    const getFieldValue = {
+      name: (component) => component.name,
+      remark: (component) => component.remark,
+      deviceName: (component) => componentDeviceName(component),
+    }[view.filterField];
+    if (!getFieldValue) return components;
+    return components.filter((component) => String(getFieldValue(component) ?? "").toLocaleLowerCase("zh-CN").includes(keyword));
+  }
+
+  function renderCabinetFunctionFilterControl(components) {
+    const view = state.cabinetFunctions;
+    if (view.filterField === "status") {
+      return `
+        <label class="visually-hidden" for="cabinetFunctionFilterValue">状态</label>
+        <select id="cabinetFunctionFilterValue" class="cabinet-query-filter-value" aria-label="状态筛选">
+          <option value=""${view.filterValue ? "" : " selected"}>全部</option>
+          <option value="online"${view.filterValue === "online" ? " selected" : ""}>在线</option>
+          <option value="offline"${view.filterValue === "offline" ? " selected" : ""}>离线</option>
+          <option value="fault"${view.filterValue === "fault" ? " selected" : ""}>故障</option>
+        </select>`;
+    }
+    if (view.filterField === "type") {
+      const types = [...new Set(components.map((component) => component.type))].sort((left, right) => left.localeCompare(right, "zh-CN"));
+      return `
+        <label class="visually-hidden" for="cabinetFunctionFilterValue">功能类型</label>
+        <select id="cabinetFunctionFilterValue" class="cabinet-query-filter-value" aria-label="功能类型筛选">
+          <option value=""${view.filterValue ? "" : " selected"}>全部</option>
+          ${types.map((type) => `<option value="${escapeHtml(type)}"${view.filterValue === type ? " selected" : ""}>${escapeHtml(type)}</option>`).join("")}
+        </select>`;
+    }
+
+    const placeholders = {
+      name: "请输入功能名称",
+      remark: "请输入设备备注",
+      deviceName: "请输入设备名称",
+    };
+    return `
+      <label class="cabinet-query-search" for="cabinetFunctionFilterInput">
+        ${icon("search")}
+        <input id="cabinetFunctionFilterInput" type="search" value="${escapeHtml(view.filterValue)}" placeholder="${placeholders[view.filterField] ?? "请输入关键字"}" autocomplete="off" aria-label="${placeholders[view.filterField] ?? "请输入关键字"}">
+      </label>`;
+  }
+
   function renderCabinetFunctionQueryPage() {
     const view = state.cabinetFunctions;
     const selectedArea = areaDetails(view.selectedAreaId);
@@ -355,9 +409,13 @@
     }
 
     const selectedCabinet = cabinetOptions.find((option) => option.id === view.selectedCabinetId) ?? { id: "unclassified", name: "未分类" };
-    const visibleComponents = areaComponents.filter((component) =>
+    const cabinetComponents = areaComponents.filter((component) =>
       selectedCabinet.id === "unclassified" ? !component.cabinetId : component.cabinetId === selectedCabinet.id,
     );
+    if (view.filterField === "type" && view.filterValue && !cabinetComponents.some((component) => component.type === view.filterValue)) {
+      view.filterValue = "";
+    }
+    const visibleComponents = filterCabinetFunctionComponents(cabinetComponents);
     const statusLabels = { online: "在线", offline: "离线", fault: "故障" };
     const detailRows = visibleComponents.length
       ? visibleComponents
@@ -376,7 +434,7 @@
               </tr>`;
           })
           .join("")
-      : `<tr><td colspan="8"><div class="empty-state"><div><strong>暂无设备功能明细</strong>当前区域与配电箱下没有匹配数据</div></div></td></tr>`;
+      : `<tr><td colspan="8"><div class="empty-state"><div><strong>暂无设备功能明细</strong>${cabinetComponents.length ? "当前筛选条件下没有匹配数据" : "当前区域与配电箱下没有匹配数据"}</div></div></td></tr>`;
 
     const cabinetOptionMarkup = cabinetOptions.length
       ? cabinetOptions
@@ -408,6 +466,17 @@
             <header class="cabinet-query-stage-header">
               <div><strong>${escapeHtml(selectedCabinet.name)}</strong><span>${escapeHtml(selectedArea.name)}</span></div>
             </header>
+            <div class="cabinet-query-toolbar" role="search" aria-label="设备功能筛选">
+              <label class="visually-hidden" for="cabinetFunctionFilterField">筛选字段</label>
+              <select id="cabinetFunctionFilterField" class="cabinet-query-filter-field" aria-label="筛选字段">
+                <option value="status"${view.filterField === "status" ? " selected" : ""}>状态</option>
+                <option value="name"${view.filterField === "name" ? " selected" : ""}>功能名称</option>
+                <option value="type"${view.filterField === "type" ? " selected" : ""}>功能类型</option>
+                <option value="remark"${view.filterField === "remark" ? " selected" : ""}>设备备注</option>
+                <option value="deviceName"${view.filterField === "deviceName" ? " selected" : ""}>设备名称</option>
+              </select>
+              <div class="cabinet-query-filter-control">${renderCabinetFunctionFilterControl(cabinetComponents)}</div>
+            </div>
             <section class="cabinet-query-section" aria-label="设备功能明细">
               <div class="table-wrap cabinet-query-table-wrap">
                 <table class="data-table cabinet-query-table">
@@ -744,6 +813,7 @@
           <li><strong>已确认：</strong>导航只保留组件视图，按参考截图使用页面树、页面面包屑、全开/全关和不同类型控制组件。</li>
           <li><strong>已确认：</strong>主导航保留独立“配电箱功能查询”，删除“设备功能”菜单及整个页面；旧“设备功能”和“配电箱设备列表”地址兼容进入配电箱功能查询。</li>
           <li><strong>已确认：</strong>配电箱功能查询左侧将“全部区域—楼栋—房间”区域树与该区域的现有配电箱/“未分类”并排展示；两个筛选栏收窄，筛选变化后右侧立即更新。</li>
+          <li><strong>已确认：</strong>配电箱功能查询顶部可按状态、功能名称、功能类型、设备备注和设备名称筛选；状态与功能类型使用下拉选项，其余字段使用文本输入，条件变化后立即筛选且不增加查询/重置按钮。</li>
           <li><strong>已确认：</strong>配电箱功能查询右侧直接展示设备功能明细表格，不显示表格标题、筛选说明、只读标记、状态汇总或故障记录，也不提供勾选、控制、编辑、导出或关系写操作。</li>
           <li><strong>已确认：</strong>设备管理删除右上角“配电箱”入口及清除、新建、管理、选择等关系写操作；保留配电箱下拉自动筛选、列表末列只读展示和设备导出字段。</li>
           <li><strong>已确认：</strong>配电箱及设备关联由其他平台维护并同步，GVP 只读消费同一批同步结果；配电箱名称文字使用同步颜色或既有配置颜色，不增加颜色图标。</li>
@@ -848,6 +918,17 @@
 
   document.addEventListener("change", (event) => {
     const target = event.target;
+    if (target.id === "cabinetFunctionFilterField") {
+      state.cabinetFunctions.filterField = target.value;
+      state.cabinetFunctions.filterValue = "";
+      render();
+      return;
+    }
+    if (target.id === "cabinetFunctionFilterValue") {
+      state.cabinetFunctions.filterValue = target.value;
+      render();
+      return;
+    }
     if (target.matches('[data-action="page-size"]')) {
       const scope = target.dataset.scope;
       if (state[scope]) {
@@ -874,6 +955,21 @@
 
   document.addEventListener("input", (event) => {
     const target = event.target;
+    if (target.id === "cabinetFunctionFilterInput") {
+      state.cabinetFunctions.filterValue = target.value;
+      window.clearTimeout(cabinetFunctionFilterTimer);
+      cabinetFunctionFilterTimer = window.setTimeout(() => {
+        render();
+        requestAnimationFrame(() => {
+          const input = document.getElementById("cabinetFunctionFilterInput");
+          if (input) {
+            input.focus();
+            input.setSelectionRange(input.value.length, input.value.length);
+          }
+        });
+      }, 250);
+      return;
+    }
     if (target.id === "deviceKeyword") {
       state.devices.appliedKeyword = target.value.trim();
       state.devices.page = 1;
@@ -1162,6 +1258,8 @@
       state.devices.selected.clear();
       state.cabinetFunctions.selectedAreaId = "all";
       state.cabinetFunctions.selectedCabinetId = "cab-001";
+      state.cabinetFunctions.filterField = "name";
+      state.cabinetFunctions.filterValue = "";
       state.navigation.editorComponentId = null;
       closeModal();
       render();
