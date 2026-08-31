@@ -24,6 +24,9 @@
       expandedAreaIds: new Set(["all", ...model.locations.map((building) => building.id)]),
       filterField: "name",
       filterValue: "",
+      page: 1,
+      pageSize: 10,
+      selected: new Set(),
     },
     devices: {
       filterField: "remark",
@@ -283,6 +286,9 @@
         app.innerHTML = renderPlaceholderPage(state.page);
         break;
     }
+    app.querySelectorAll('input[data-indeterminate="true"]').forEach((input) => {
+      input.indeterminate = true;
+    });
     app.focus({ preventScroll: true });
   }
 
@@ -451,12 +457,21 @@
     const view = state.cabinetFunctions;
     const { selectedArea, areaComponents, cabinetOptions, selectedCabinet, cabinetComponents, visibleComponents } = getCabinetFunctionQueryContext();
     const statusLabels = { online: "在线", offline: "离线", fault: "故障" };
-    const detailRows = visibleComponents.length
-      ? visibleComponents
+    const totalPages = Math.max(1, Math.ceil(visibleComponents.length / view.pageSize));
+    if (view.page > totalPages) view.page = totalPages;
+    const pageComponents = visibleComponents.slice((view.page - 1) * view.pageSize, view.page * view.pageSize);
+    const pageIds = pageComponents.map((component) => component.id);
+    const selectedPageCount = pageIds.filter((id) => view.selected.has(id)).length;
+    const allPageSelected = pageIds.length > 0 && selectedPageCount === pageIds.length;
+    const somePageSelected = selectedPageCount > 0 && !allPageSelected;
+    const detailRows = pageComponents.length
+      ? pageComponents
           .map((component) => {
             const cabinet = getCabinet(component.cabinetId);
+            const selected = view.selected.has(component.id);
             return `
-              <tr>
+              <tr class="${selected ? "selected" : ""}">
+                <td class="checkbox-cell"><input class="table-checkbox" type="checkbox" data-action="select-cabinet-function" data-id="${component.id}"${selected ? " checked" : ""} aria-label="选择 ${escapeHtml(component.name)}"></td>
                 <td title="${escapeHtml(component.name)}">${escapeHtml(component.name)}</td>
                 <td>${escapeHtml(component.type)}</td>
                 <td><span class="device-status-text ${escapeHtml(component.deviceStatus)}">${statusLabels[component.deviceStatus] ?? "离线"}</span></td>
@@ -468,7 +483,7 @@
               </tr>`;
           })
           .join("")
-      : `<tr><td colspan="8"><div class="empty-state"><div><strong>暂无设备功能明细</strong>${cabinetComponents.length ? "当前筛选条件下没有匹配数据" : "当前区域与配电箱下没有匹配数据"}</div></div></td></tr>`;
+      : `<tr><td colspan="9"><div class="empty-state"><div><strong>暂无设备功能明细</strong>${cabinetComponents.length ? "当前筛选条件下没有匹配数据" : "当前区域与配电箱下没有匹配数据"}</div></div></td></tr>`;
 
     const cabinetOptionMarkup = cabinetOptions.length
       ? cabinetOptions
@@ -515,10 +530,12 @@
             <section class="cabinet-query-section" aria-label="设备功能明细">
               <div class="table-wrap cabinet-query-table-wrap">
                 <table class="data-table cabinet-query-table">
-                  <thead><tr><th>功能名称</th><th>功能类型</th><th>状态</th><th>所属页面</th><th>配电箱</th><th>设备备注</th><th>设备名称</th><th>楼层节点</th></tr></thead>
+                  <colgroup><col style="width:54px"><col span="8"></colgroup>
+                  <thead><tr><th class="checkbox-cell"><input class="table-checkbox" type="checkbox" data-action="select-all-cabinet-functions"${allPageSelected ? " checked" : ""}${somePageSelected ? ' data-indeterminate="true" aria-checked="mixed"' : ""} aria-label="选择本页全部设备功能"></th><th>功能名称</th><th>功能类型</th><th>状态</th><th>所属页面</th><th>配电箱</th><th>设备备注</th><th>设备名称</th><th>楼层节点</th></tr></thead>
                   <tbody>${detailRows}</tbody>
                 </table>
               </div>
+              ${pagerHtml(visibleComponents.length, view.page, view.pageSize, "cabinetFunctions")}
             </section>
           </section>
         </div>
@@ -849,7 +866,8 @@
           <li><strong>已确认：</strong>主导航保留独立“配电箱功能查询”，删除“设备功能”菜单及整个页面；旧“设备功能”和“配电箱设备列表”地址兼容进入配电箱功能查询。</li>
           <li><strong>已确认：</strong>配电箱功能查询左侧将“天府校区—楼栋—房间”区域树与该区域的现有配电箱/“未分类”并排展示；校区和楼栋节点可分别展开/收起，点击节点名称仍立即筛选右侧内容。</li>
           <li><strong>已确认：</strong>配电箱功能查询顶部可按状态、功能名称、功能类型、设备备注和设备名称筛选；状态与功能类型使用下拉选项，其余字段使用文本输入，条件变化后立即筛选且不增加查询/重置按钮。</li>
-          <li><strong>已确认：</strong>配电箱功能查询右上角提供导出按钮，默认导出当前区域、配电箱和顶部条件共同筛选后的全部明细；除导出外不提供勾选、控制、编辑或关系写操作。</li>
+          <li><strong>已确认：</strong>配电箱功能查询明细列表左侧提供本页全选与行复选框，底部提供分页；区域、配电箱或顶部筛选条件变化后回到第一页并清空旧选择。</li>
+          <li><strong>已确认：</strong>配电箱功能查询右上角提供导出按钮，默认导出当前区域、配电箱和顶部条件共同筛选后的全部明细，不受当前页和勾选状态限制；不提供控制、编辑或关系写操作。</li>
           <li><strong>已确认：</strong>配电箱功能查询直接展示设备功能明细表格，不显示表格标题、筛选说明、只读标记、状态汇总或故障记录。</li>
           <li><strong>已确认：</strong>设备管理删除右上角“配电箱”入口及清除、新建、管理、选择等关系写操作；保留配电箱下拉自动筛选、列表末列只读展示和设备导出字段。</li>
           <li><strong>已确认：</strong>配电箱及设备关联由其他平台维护并同步，GVP 只读消费同一批同步结果；配电箱名称文字使用同步颜色或既有配置颜色，不增加颜色图标。</li>
@@ -957,11 +975,15 @@
     if (target.id === "cabinetFunctionFilterField") {
       state.cabinetFunctions.filterField = target.value;
       state.cabinetFunctions.filterValue = "";
+      state.cabinetFunctions.page = 1;
+      state.cabinetFunctions.selected.clear();
       render();
       return;
     }
     if (target.id === "cabinetFunctionFilterValue") {
       state.cabinetFunctions.filterValue = target.value;
+      state.cabinetFunctions.page = 1;
+      state.cabinetFunctions.selected.clear();
       render();
       return;
     }
@@ -972,6 +994,19 @@
         state[scope].page = 1;
         render();
       }
+    }
+    if (target.matches('[data-action="select-cabinet-function"]')) {
+      const id = target.dataset.id;
+      if (target.checked) state.cabinetFunctions.selected.add(id);
+      else state.cabinetFunctions.selected.delete(id);
+      render();
+    }
+    if (target.matches('[data-action="select-all-cabinet-functions"]')) {
+      const { visibleComponents } = getCabinetFunctionQueryContext();
+      const view = state.cabinetFunctions;
+      const pageItems = visibleComponents.slice((view.page - 1) * view.pageSize, view.page * view.pageSize);
+      pageItems.forEach((item) => (target.checked ? view.selected.add(item.id) : view.selected.delete(item.id)));
+      render();
     }
     if (target.matches('[data-action="select-device"]')) {
       const id = target.dataset.id;
@@ -993,6 +1028,8 @@
     const target = event.target;
     if (target.id === "cabinetFunctionFilterInput") {
       state.cabinetFunctions.filterValue = target.value;
+      state.cabinetFunctions.page = 1;
+      state.cabinetFunctions.selected.clear();
       window.clearTimeout(cabinetFunctionFilterTimer);
       cabinetFunctionFilterTimer = window.setTimeout(() => {
         render();
@@ -1086,11 +1123,15 @@
     }
     if (action === "select-cabinet-area") {
       state.cabinetFunctions.selectedAreaId = target.dataset.areaId;
+      state.cabinetFunctions.page = 1;
+      state.cabinetFunctions.selected.clear();
       render();
       return;
     }
     if (action === "select-cabinet-query-cabinet") {
       state.cabinetFunctions.selectedCabinetId = target.dataset.cabinetId;
+      state.cabinetFunctions.page = 1;
+      state.cabinetFunctions.selected.clear();
       render();
       return;
     }
@@ -1325,6 +1366,9 @@
       state.cabinetFunctions.expandedAreaIds = new Set(["all", ...model.locations.map((building) => building.id)]);
       state.cabinetFunctions.filterField = "name";
       state.cabinetFunctions.filterValue = "";
+      state.cabinetFunctions.page = 1;
+      state.cabinetFunctions.pageSize = 10;
+      state.cabinetFunctions.selected.clear();
       state.navigation.editorComponentId = null;
       closeModal();
       render();

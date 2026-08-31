@@ -1328,7 +1328,7 @@ textarea:focus-visible,
 }
 
 .cabinet-query-table {
-  min-width: 1100px;
+  min-width: 1154px;
 }
 
 .cabinet-query-table th,
@@ -1336,6 +1336,13 @@ textarea:focus-visible,
   height: 46px;
   padding: 9px 12px;
   font-size: 12px;
+}
+
+.cabinet-query-section .pagination-bar {
+  min-height: 62px;
+  margin-top: 4px;
+  padding: 18px 0 0;
+  border-top: 1px solid #eceef4;
 }
 
 .empty-state.compact {
