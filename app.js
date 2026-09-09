@@ -385,13 +385,8 @@
     const keyword = value.toLocaleLowerCase("zh-CN");
     const getFieldValue = {
       remark: (device) => device.remark,
-      protocol: (device) => device.protocol,
       model: (device) => device.model,
-      product: (device) => device.product,
-      address: (device) => device.address,
-      connection: (device) => device.connection,
       ip: (device) => device.ip,
-      location: (device) => deviceLocationPath(device),
     }[view.filterField];
     if (!getFieldValue) return devices;
     return devices.filter((device) => String(getFieldValue(device) ?? "").toLocaleLowerCase("zh-CN").includes(keyword));
@@ -420,13 +415,8 @@
 
     const placeholders = {
       remark: "请输入设备备注",
-      protocol: "请输入协议",
       model: "请输入型号",
-      product: "请输入产品名",
-      address: "请输入设备地址",
-      connection: "请输入连接方式",
       ip: "请输入所属 IP",
-      location: "请输入楼层节点",
     };
     return `
       <label class="cabinet-query-search" for="cabinetFunctionFilterInput">
@@ -540,13 +530,8 @@
                 <option value="status"${view.filterField === "status" ? " selected" : ""}>状态</option>
                 <option value="remark"${view.filterField === "remark" ? " selected" : ""}>设备备注</option>
                 <option value="type"${view.filterField === "type" ? " selected" : ""}>设备类型</option>
-                <option value="protocol"${view.filterField === "protocol" ? " selected" : ""}>协议</option>
                 <option value="model"${view.filterField === "model" ? " selected" : ""}>型号</option>
-                <option value="product"${view.filterField === "product" ? " selected" : ""}>产品名</option>
-                <option value="address"${view.filterField === "address" ? " selected" : ""}>设备地址</option>
-                <option value="connection"${view.filterField === "connection" ? " selected" : ""}>连接方式</option>
                 <option value="ip"${view.filterField === "ip" ? " selected" : ""}>所属 IP</option>
-                <option value="location"${view.filterField === "location" ? " selected" : ""}>楼层节点</option>
               </select>
               <div class="cabinet-query-filter-control">${renderCabinetDeviceFilterControl(cabinetDevices)}</div>
               <button class="cabinet-query-export-button" type="button" data-action="export-cabinet-functions" title="导出当前筛选后的全部数据">${icon("export")}导出</button>
@@ -890,7 +875,7 @@
           <li><strong>已确认：</strong>导航只保留组件视图，按参考截图使用页面树、页面面包屑、全开/全关和不同类型控制组件。</li>
           <li><strong>已确认：</strong>主导航保留独立“配电箱设备查询”，删除“设备功能”菜单及整个页面；旧“设备功能”和“配电箱设备列表”地址兼容进入配电箱设备查询。</li>
           <li><strong>已确认：</strong>配电箱设备查询左侧将“天府校区—楼栋—房间”区域树与该区域的现有配电箱/“未分类”并排展示；校区和楼栋节点可分别展开/收起，点击节点名称仍立即筛选右侧内容。</li>
-          <li><strong>已确认：</strong>配电箱设备查询顶部按设备字段自动筛选，状态只包含在线和离线；条件变化后立即筛选且不增加查询/重置按钮。</li>
+          <li><strong>已确认：</strong>配电箱设备查询顶部仅保留状态、设备备注、设备类型、型号和所属 IP 筛选，状态只包含在线和离线；条件变化后立即筛选且不增加查询/重置按钮。</li>
           <li><strong>已确认：</strong>配电箱设备查询明细列表字段与设备管理一致，并提供本页全选、行复选框和分页；区域、配电箱或顶部筛选条件变化后回到第一页并清空旧选择。</li>
           <li><strong>已确认：</strong>配电箱设备查询右上角提供导出按钮，默认导出当前区域、配电箱和顶部条件共同筛选后的全部明细，不受当前页和勾选状态限制；不提供控制、编辑或关系写操作。</li>
           <li><strong>已确认：</strong>设备管理和配电箱设备查询列表均增加“楼层节点”字段。</li>
