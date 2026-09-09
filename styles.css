@@ -646,7 +646,7 @@ textarea:focus-visible,
 }
 
 .data-table.device-table {
-  min-width: 1490px;
+  min-width: 1660px;
 }
 
 .data-table.cabinet-table {
@@ -1328,7 +1328,7 @@ textarea:focus-visible,
 }
 
 .cabinet-query-table {
-  min-width: 1154px;
+  min-width: 1660px;
 }
 
 .cabinet-query-table th,

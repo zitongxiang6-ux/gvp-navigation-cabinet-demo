@@ -22,7 +22,7 @@
       selectedAreaId: "all",
       selectedCabinetId: "cab-001",
       expandedAreaIds: new Set(["all", ...model.locations.map((building) => building.id)]),
-      filterField: "name",
+      filterField: "remark",
       filterValue: "",
       page: 1,
       pageSize: 10,
@@ -51,7 +51,7 @@
   const pageNames = {
     overview: "首页",
     navigation: "导航",
-    "cabinet-functions": "配电箱功能查询",
+    "cabinet-functions": "配电箱设备查询",
     history: "历史记录",
     devices: "设备管理",
   };
@@ -305,6 +305,12 @@
     return [building?.name, room?.name].filter(Boolean).join("→");
   }
 
+  function deviceLocationPath(device) {
+    const building = model.locations.find((item) => item.rooms.some((room) => room.id === device.roomId));
+    const room = building?.rooms.find((item) => item.id === device.roomId);
+    return [building?.name, room?.name].filter(Boolean).join("→");
+  }
+
   function componentDeviceName(component) {
     const suffix = String(component.id).replace(/\D/g, "").padStart(3, "0");
     return `MDL64-BP-${suffix}`;
@@ -323,9 +329,9 @@
     return areaDetails("all");
   }
 
-  function componentsInArea(areaId) {
+  function devicesInArea(areaId) {
     const roomIds = new Set(areaDetails(areaId).roomIds);
-    return model.components.filter((component) => roomIds.has(component.roomId));
+    return model.devices.filter((device) => roomIds.has(device.roomId));
   }
 
   function renderCabinetAreaTree(selectedAreaId) {
@@ -369,24 +375,29 @@
       </div>`;
   }
 
-  function filterCabinetFunctionComponents(components) {
+  function filterCabinetDevices(devices) {
     const view = state.cabinetFunctions;
     const value = view.filterValue.trim();
-    if (!value) return components;
-    if (view.filterField === "status") return components.filter((component) => component.deviceStatus === value);
-    if (view.filterField === "type") return components.filter((component) => component.type === value);
+    if (!value) return devices;
+    if (view.filterField === "status") return devices.filter((device) => device.status === value);
+    if (view.filterField === "type") return devices.filter((device) => device.type === value);
 
     const keyword = value.toLocaleLowerCase("zh-CN");
     const getFieldValue = {
-      name: (component) => component.name,
-      remark: (component) => component.remark,
-      deviceName: (component) => componentDeviceName(component),
+      remark: (device) => device.remark,
+      protocol: (device) => device.protocol,
+      model: (device) => device.model,
+      product: (device) => device.product,
+      address: (device) => device.address,
+      connection: (device) => device.connection,
+      ip: (device) => device.ip,
+      location: (device) => deviceLocationPath(device),
     }[view.filterField];
-    if (!getFieldValue) return components;
-    return components.filter((component) => String(getFieldValue(component) ?? "").toLocaleLowerCase("zh-CN").includes(keyword));
+    if (!getFieldValue) return devices;
+    return devices.filter((device) => String(getFieldValue(device) ?? "").toLocaleLowerCase("zh-CN").includes(keyword));
   }
 
-  function renderCabinetFunctionFilterControl(components) {
+  function renderCabinetDeviceFilterControl(devices) {
     const view = state.cabinetFunctions;
     if (view.filterField === "status") {
       return `
@@ -395,23 +406,27 @@
           <option value=""${view.filterValue ? "" : " selected"}>全部</option>
           <option value="online"${view.filterValue === "online" ? " selected" : ""}>在线</option>
           <option value="offline"${view.filterValue === "offline" ? " selected" : ""}>离线</option>
-          <option value="fault"${view.filterValue === "fault" ? " selected" : ""}>故障</option>
         </select>`;
     }
     if (view.filterField === "type") {
-      const types = [...new Set(components.map((component) => component.type))].sort((left, right) => left.localeCompare(right, "zh-CN"));
+      const types = [...new Set(devices.map((device) => device.type))].sort((left, right) => left.localeCompare(right, "zh-CN"));
       return `
-        <label class="visually-hidden" for="cabinetFunctionFilterValue">功能类型</label>
-        <select id="cabinetFunctionFilterValue" class="cabinet-query-filter-value" aria-label="功能类型筛选">
+        <label class="visually-hidden" for="cabinetFunctionFilterValue">设备类型</label>
+        <select id="cabinetFunctionFilterValue" class="cabinet-query-filter-value" aria-label="设备类型筛选">
           <option value=""${view.filterValue ? "" : " selected"}>全部</option>
           ${types.map((type) => `<option value="${escapeHtml(type)}"${view.filterValue === type ? " selected" : ""}>${escapeHtml(type)}</option>`).join("")}
         </select>`;
     }
 
     const placeholders = {
-      name: "请输入功能名称",
       remark: "请输入设备备注",
-      deviceName: "请输入设备名称",
+      protocol: "请输入协议",
+      model: "请输入型号",
+      product: "请输入产品名",
+      address: "请输入设备地址",
+      connection: "请输入连接方式",
+      ip: "请输入所属 IP",
+      location: "请输入楼层节点",
     };
     return `
       <label class="cabinet-query-search" for="cabinetFunctionFilterInput">
@@ -420,14 +435,14 @@
       </label>`;
   }
 
-  function getCabinetFunctionQueryContext() {
+  function getCabinetDeviceQueryContext() {
     const view = state.cabinetFunctions;
     const selectedArea = areaDetails(view.selectedAreaId);
-    const areaComponents = componentsInArea(selectedArea.id);
+    const areaDevices = devicesInArea(selectedArea.id);
     const activeCabinets = model.cabinets.filter(
-      (cabinet) => cabinet.status === "active" && areaComponents.some((component) => component.cabinetId === cabinet.id),
+      (cabinet) => cabinet.status === "active" && areaDevices.some((device) => displayCabinet(device)?.id === cabinet.id),
     );
-    const hasUnclassified = areaComponents.some((component) => !component.cabinetId);
+    const hasUnclassified = areaDevices.some((device) => !displayCabinet(device));
     const cabinetOptions = [
       ...activeCabinets.map((cabinet) => ({ id: cabinet.id, name: cabinet.name })),
       ...(hasUnclassified ? [{ id: "unclassified", name: "未分类" }] : []),
@@ -437,62 +452,66 @@
     }
 
     const selectedCabinet = cabinetOptions.find((option) => option.id === view.selectedCabinetId) ?? { id: "unclassified", name: "未分类" };
-    const cabinetComponents = areaComponents.filter((component) =>
-      selectedCabinet.id === "unclassified" ? !component.cabinetId : component.cabinetId === selectedCabinet.id,
+    const cabinetDevices = areaDevices.filter((device) =>
+      selectedCabinet.id === "unclassified" ? !displayCabinet(device) : displayCabinet(device)?.id === selectedCabinet.id,
     );
-    if (view.filterField === "type" && view.filterValue && !cabinetComponents.some((component) => component.type === view.filterValue)) {
+    if (view.filterField === "type" && view.filterValue && !cabinetDevices.some((device) => device.type === view.filterValue)) {
       view.filterValue = "";
     }
     return {
       selectedArea,
-      areaComponents,
+      areaDevices,
       cabinetOptions,
       selectedCabinet,
-      cabinetComponents,
-      visibleComponents: filterCabinetFunctionComponents(cabinetComponents),
+      cabinetDevices,
+      visibleDevices: filterCabinetDevices(cabinetDevices),
     };
   }
 
   function renderCabinetFunctionQueryPage() {
     const view = state.cabinetFunctions;
-    const { selectedArea, areaComponents, cabinetOptions, selectedCabinet, cabinetComponents, visibleComponents } = getCabinetFunctionQueryContext();
-    const statusLabels = { online: "在线", offline: "离线", fault: "故障" };
-    const totalPages = Math.max(1, Math.ceil(visibleComponents.length / view.pageSize));
+    const { selectedArea, areaDevices, cabinetOptions, selectedCabinet, cabinetDevices, visibleDevices } = getCabinetDeviceQueryContext();
+    const totalPages = Math.max(1, Math.ceil(visibleDevices.length / view.pageSize));
     if (view.page > totalPages) view.page = totalPages;
-    const pageComponents = visibleComponents.slice((view.page - 1) * view.pageSize, view.page * view.pageSize);
-    const pageIds = pageComponents.map((component) => component.id);
+    const pageDevices = visibleDevices.slice((view.page - 1) * view.pageSize, view.page * view.pageSize);
+    const pageIds = pageDevices.map((device) => device.id);
     const selectedPageCount = pageIds.filter((id) => view.selected.has(id)).length;
     const allPageSelected = pageIds.length > 0 && selectedPageCount === pageIds.length;
     const somePageSelected = selectedPageCount > 0 && !allPageSelected;
-    const detailRows = pageComponents.length
-      ? pageComponents
-          .map((component) => {
-            const cabinet = getCabinet(component.cabinetId);
-            const selected = view.selected.has(component.id);
+    const detailRows = pageDevices.length
+      ? pageDevices
+          .map((device) => {
+            const cabinet = displayCabinet(device);
+            const selected = view.selected.has(device.id);
             return `
               <tr class="${selected ? "selected" : ""}">
-                <td class="checkbox-cell"><input class="table-checkbox" type="checkbox" data-action="select-cabinet-function" data-id="${component.id}"${selected ? " checked" : ""} aria-label="选择 ${escapeHtml(component.name)}"></td>
-                <td title="${escapeHtml(component.name)}">${escapeHtml(component.name)}</td>
-                <td>${escapeHtml(component.type)}</td>
-                <td><span class="device-status-text ${escapeHtml(component.deviceStatus)}">${statusLabels[component.deviceStatus] ?? "离线"}</span></td>
-                <td>${escapeHtml(component.page)}</td>
+                <td class="checkbox-cell"><input class="table-checkbox" type="checkbox" data-action="select-cabinet-function" data-id="${device.id}"${selected ? " checked" : ""} aria-label="选择 ${escapeHtml(device.remark)}"></td>
+                <td title="${escapeHtml(device.remark)}">${escapeHtml(device.remark)}</td>
+                <td>${escapeHtml(device.type)}</td>
+                <td><span class="status-pill ${device.status}">${device.status === "online" ? "在线" : "离线"}</span></td>
+                <td>${escapeHtml(device.protocol)}</td>
+                <td title="${escapeHtml(device.model)}">${escapeHtml(device.model)}</td>
+                <td title="${escapeHtml(device.product)}">${escapeHtml(device.product)}</td>
+                <td title="${escapeHtml(device.address)}">${escapeHtml(device.address)}</td>
+                <td>${escapeHtml(device.connection)}</td>
+                <td>${escapeHtml(device.ip)}</td>
                 <td class="device-cabinet-cell" title="${escapeHtml(cabinet?.name ?? "")}">${cabinetColorText(cabinet?.name, cabinet)}</td>
-                <td title="${escapeHtml(component.remark)}">${escapeHtml(component.remark)}</td>
-                <td title="${escapeHtml(componentDeviceName(component))}">${escapeHtml(componentDeviceName(component))}</td>
-                <td title="${escapeHtml(componentLocationPath(component))}">${escapeHtml(componentLocationPath(component))}</td>
+                <td title="${escapeHtml(deviceLocationPath(device))}">${escapeHtml(deviceLocationPath(device))}</td>
               </tr>`;
           })
           .join("")
-      : `<tr><td colspan="9"><div class="empty-state"><div><strong>暂无设备功能明细</strong>${cabinetComponents.length ? "当前筛选条件下没有匹配数据" : "当前区域与配电箱下没有匹配数据"}</div></div></td></tr>`;
+      : `<tr><td colspan="12"><div class="empty-state"><div><strong>暂无设备明细</strong>${cabinetDevices.length ? "当前筛选条件下没有匹配数据" : "当前区域与配电箱下没有匹配数据"}</div></div></td></tr>`;
 
     const cabinetOptionMarkup = cabinetOptions.length
       ? cabinetOptions
           .map((option) => {
-            const components = areaComponents.filter((component) => (option.id === "unclassified" ? !component.cabinetId : component.cabinetId === option.id));
-            const online = components.filter((component) => component.deviceStatus === "online").length;
+            const devices = areaDevices.filter((device) =>
+              option.id === "unclassified" ? !displayCabinet(device) : displayCabinet(device)?.id === option.id,
+            );
+            const online = devices.filter((device) => device.status === "online").length;
             return `
               <button class="cabinet-device-option${selectedCabinet.id === option.id ? " active" : ""}" type="button" data-action="select-cabinet-query-cabinet" data-cabinet-id="${option.id}" aria-pressed="${selectedCabinet.id === option.id}">
-                <span>${escapeHtml(option.name)}</span><span class="cabinet-device-option-count">（${online}/${components.length}）</span>
+                <span>${escapeHtml(option.name)}</span><span class="cabinet-device-option-count">（${online}/${devices.length}）</span>
               </button>`;
           })
           .join("")
@@ -515,27 +534,32 @@
             <header class="cabinet-query-stage-header">
               <div><strong>${escapeHtml(selectedCabinet.name)}</strong><span>${escapeHtml(selectedArea.name)}</span></div>
             </header>
-            <div class="cabinet-query-toolbar" role="toolbar" aria-label="设备功能筛选与导出">
+            <div class="cabinet-query-toolbar" role="toolbar" aria-label="设备筛选与导出">
               <label class="visually-hidden" for="cabinetFunctionFilterField">筛选字段</label>
               <select id="cabinetFunctionFilterField" class="cabinet-query-filter-field" aria-label="筛选字段">
                 <option value="status"${view.filterField === "status" ? " selected" : ""}>状态</option>
-                <option value="name"${view.filterField === "name" ? " selected" : ""}>功能名称</option>
-                <option value="type"${view.filterField === "type" ? " selected" : ""}>功能类型</option>
                 <option value="remark"${view.filterField === "remark" ? " selected" : ""}>设备备注</option>
-                <option value="deviceName"${view.filterField === "deviceName" ? " selected" : ""}>设备名称</option>
+                <option value="type"${view.filterField === "type" ? " selected" : ""}>设备类型</option>
+                <option value="protocol"${view.filterField === "protocol" ? " selected" : ""}>协议</option>
+                <option value="model"${view.filterField === "model" ? " selected" : ""}>型号</option>
+                <option value="product"${view.filterField === "product" ? " selected" : ""}>产品名</option>
+                <option value="address"${view.filterField === "address" ? " selected" : ""}>设备地址</option>
+                <option value="connection"${view.filterField === "connection" ? " selected" : ""}>连接方式</option>
+                <option value="ip"${view.filterField === "ip" ? " selected" : ""}>所属 IP</option>
+                <option value="location"${view.filterField === "location" ? " selected" : ""}>楼层节点</option>
               </select>
-              <div class="cabinet-query-filter-control">${renderCabinetFunctionFilterControl(cabinetComponents)}</div>
+              <div class="cabinet-query-filter-control">${renderCabinetDeviceFilterControl(cabinetDevices)}</div>
               <button class="cabinet-query-export-button" type="button" data-action="export-cabinet-functions" title="导出当前筛选后的全部数据">${icon("export")}导出</button>
             </div>
-            <section class="cabinet-query-section" aria-label="设备功能明细">
+            <section class="cabinet-query-section" aria-label="设备明细">
               <div class="table-wrap cabinet-query-table-wrap">
                 <table class="data-table cabinet-query-table">
-                  <colgroup><col style="width:54px"><col span="8"></colgroup>
-                  <thead><tr><th class="checkbox-cell"><input class="table-checkbox" type="checkbox" data-action="select-all-cabinet-functions"${allPageSelected ? " checked" : ""}${somePageSelected ? ' data-indeterminate="true" aria-checked="mixed"' : ""} aria-label="选择本页全部设备功能"></th><th>功能名称</th><th>功能类型</th><th>状态</th><th>所属页面</th><th>配电箱</th><th>设备备注</th><th>设备名称</th><th>楼层节点</th></tr></thead>
+                  <colgroup><col style="width:54px"><col style="width:180px"><col style="width:110px"><col style="width:82px"><col style="width:100px"><col style="width:160px"><col style="width:180px"><col style="width:240px"><col style="width:100px"><col style="width:130px"><col style="width:150px"><col style="width:170px"></colgroup>
+                  <thead><tr><th class="checkbox-cell"><input class="table-checkbox" type="checkbox" data-action="select-all-cabinet-functions"${allPageSelected ? " checked" : ""}${somePageSelected ? ' data-indeterminate="true" aria-checked="mixed"' : ""} aria-label="选择本页全部设备"></th><th>设备备注</th><th>设备类型</th><th>状态</th><th>协议</th><th>型号</th><th>产品名</th><th>设备地址</th><th>连接方式</th><th>所属 IP</th><th>配电箱</th><th>楼层节点</th></tr></thead>
                   <tbody>${detailRows}</tbody>
                 </table>
               </div>
-              ${pagerHtml(visibleComponents.length, view.page, view.pageSize, "cabinetFunctions")}
+              ${pagerHtml(visibleDevices.length, view.page, view.pageSize, "cabinetFunctions")}
             </section>
           </section>
         </div>
@@ -716,10 +740,11 @@
                 <td>${escapeHtml(device.connection)}</td>
                 <td>${escapeHtml(device.ip)}</td>
                 <td class="device-cabinet-cell" title="${escapeHtml(cabinet?.name ?? "")}">${cabinetColorText(cabinet?.name, cabinet)}</td>
+                <td title="${escapeHtml(deviceLocationPath(device))}">${escapeHtml(deviceLocationPath(device))}</td>
               </tr>`;
           })
           .join("")
-      : `<tr><td colspan="11"><div class="empty-state"><div><strong>没有匹配的设备</strong>请调整设备备注、型号、IP、设备类型或配电箱</div></div></td></tr>`;
+      : `<tr><td colspan="12"><div class="empty-state"><div><strong>没有匹配的设备</strong>请调整设备备注、型号、IP、设备类型或配电箱</div></div></td></tr>`;
 
     return `
       <section class="page device-reference-page">
@@ -751,11 +776,11 @@
           <div class="table-wrap device-reference-table-wrap">
             <table class="data-table device-table">
               <colgroup>
-                <col style="width:54px"><col style="width:180px"><col style="width:110px"><col style="width:82px"><col style="width:100px"><col style="width:160px"><col style="width:180px"><col style="width:240px"><col style="width:100px"><col style="width:130px"><col style="width:150px">
+                <col style="width:54px"><col style="width:180px"><col style="width:110px"><col style="width:82px"><col style="width:100px"><col style="width:160px"><col style="width:180px"><col style="width:240px"><col style="width:100px"><col style="width:130px"><col style="width:150px"><col style="width:170px">
               </colgroup>
               <thead><tr>
                 <th class="checkbox-cell"><input class="table-checkbox" type="checkbox" data-action="select-all-devices"${allPageSelected ? " checked" : ""} aria-label="选择本页全部设备"></th>
-                <th>设备备注</th><th>设备类型</th><th>状态</th><th>协议</th><th>型号</th><th>产品名</th><th>设备地址</th><th>连接方式</th><th>所属 IP</th><th>配电箱</th>
+                <th>设备备注</th><th>设备类型</th><th>状态</th><th>协议</th><th>型号</th><th>产品名</th><th>设备地址</th><th>连接方式</th><th>所属 IP</th><th>配电箱</th><th>楼层节点</th>
               </tr></thead>
               <tbody>${rows}</tbody>
             </table>
@@ -795,7 +820,7 @@
           </div>
           <div class="toolbar compact">
             <div class="toolbar-group">
-              <div class="field wide"><select id="historyType"><option value="all">类型 / 全部</option><option value="设备故障"${view.appliedType === "设备故障" ? " selected" : ""}>设备故障</option><option value="应用操作"${view.appliedType === "应用操作" ? " selected" : ""}>应用操作</option><option value="系统操作"${view.appliedType === "系统操作" ? " selected" : ""}>系统操作</option></select></div>
+              <div class="field wide"><select id="historyType"><option value="all">类型 / 全部</option><option value="设备离线"${view.appliedType === "设备离线" ? " selected" : ""}>设备离线</option><option value="应用操作"${view.appliedType === "应用操作" ? " selected" : ""}>应用操作</option><option value="系统操作"${view.appliedType === "系统操作" ? " selected" : ""}>系统操作</option></select></div>
               <div class="field"><select id="historyDate"><option value="all">日期 / 所有</option><option value="today"${view.appliedDate === "today" ? " selected" : ""}>今天</option><option value="7days"${view.appliedDate === "7days" ? " selected" : ""}>近 7 天</option></select></div>
             </div>
           </div>
@@ -813,7 +838,7 @@
 
   function formatHistoryMessage(entry) {
     const escaped = escapeHtml(entry.message);
-    if (entry.type !== "设备故障") return escaped;
+    if (entry.type !== "设备离线") return escaped;
     const ip = entry.ip ? `<span class="message-ip">IP地址：${escapeHtml(entry.ip)}</span>` : "";
     if (!entry.message.startsWith("[")) return `${escaped}${ip}`;
     const endIndex = entry.message.indexOf("]");
@@ -830,13 +855,13 @@
   }
 
   function historyMessageText(entry) {
-    return entry.type === "设备故障" && entry.ip ? `${entry.message} IP地址：${entry.ip}` : entry.message;
+    return entry.type === "设备离线" && entry.ip ? `${entry.message} IP地址：${entry.ip}` : entry.message;
   }
 
   function renderPlaceholderPage(page) {
     return `
       <section class="placeholder-page">
-        <div><strong>${escapeHtml(pageNames[page] ?? "页面")}</strong>本次 Demo 只实现导航、配电箱功能查询、设备管理只读配电箱信息和历史记录。</div>
+        <div><strong>${escapeHtml(pageNames[page] ?? "页面")}</strong>本次 Demo 只实现导航、配电箱设备查询、设备管理只读配电箱信息和历史记录。</div>
       </section>`;
   }
 
@@ -863,17 +888,17 @@
       body: `
         <ol class="rules-list">
           <li><strong>已确认：</strong>导航只保留组件视图，按参考截图使用页面树、页面面包屑、全开/全关和不同类型控制组件。</li>
-          <li><strong>已确认：</strong>主导航保留独立“配电箱功能查询”，删除“设备功能”菜单及整个页面；旧“设备功能”和“配电箱设备列表”地址兼容进入配电箱功能查询。</li>
-          <li><strong>已确认：</strong>配电箱功能查询左侧将“天府校区—楼栋—房间”区域树与该区域的现有配电箱/“未分类”并排展示；校区和楼栋节点可分别展开/收起，点击节点名称仍立即筛选右侧内容。</li>
-          <li><strong>已确认：</strong>配电箱功能查询顶部可按状态、功能名称、功能类型、设备备注和设备名称筛选；状态与功能类型使用下拉选项，其余字段使用文本输入，条件变化后立即筛选且不增加查询/重置按钮。</li>
-          <li><strong>已确认：</strong>配电箱功能查询明细列表左侧提供本页全选与行复选框，底部提供分页；区域、配电箱或顶部筛选条件变化后回到第一页并清空旧选择。</li>
-          <li><strong>已确认：</strong>配电箱功能查询右上角提供导出按钮，默认导出当前区域、配电箱和顶部条件共同筛选后的全部明细，不受当前页和勾选状态限制；不提供控制、编辑或关系写操作。</li>
-          <li><strong>已确认：</strong>配电箱功能查询直接展示设备功能明细表格，不显示表格标题、筛选说明、只读标记、状态汇总或故障记录。</li>
-          <li><strong>已确认：</strong>设备管理删除右上角“配电箱”入口及清除、新建、管理、选择等关系写操作；保留配电箱下拉自动筛选、列表末列只读展示和设备导出字段。</li>
+          <li><strong>已确认：</strong>主导航保留独立“配电箱设备查询”，删除“设备功能”菜单及整个页面；旧“设备功能”和“配电箱设备列表”地址兼容进入配电箱设备查询。</li>
+          <li><strong>已确认：</strong>配电箱设备查询左侧将“天府校区—楼栋—房间”区域树与该区域的现有配电箱/“未分类”并排展示；校区和楼栋节点可分别展开/收起，点击节点名称仍立即筛选右侧内容。</li>
+          <li><strong>已确认：</strong>配电箱设备查询顶部按设备字段自动筛选，状态只包含在线和离线；条件变化后立即筛选且不增加查询/重置按钮。</li>
+          <li><strong>已确认：</strong>配电箱设备查询明细列表字段与设备管理一致，并提供本页全选、行复选框和分页；区域、配电箱或顶部筛选条件变化后回到第一页并清空旧选择。</li>
+          <li><strong>已确认：</strong>配电箱设备查询右上角提供导出按钮，默认导出当前区域、配电箱和顶部条件共同筛选后的全部明细，不受当前页和勾选状态限制；不提供控制、编辑或关系写操作。</li>
+          <li><strong>已确认：</strong>设备管理和配电箱设备查询列表均增加“楼层节点”字段。</li>
+          <li><strong>已确认：</strong>设备管理删除右上角“配电箱”入口及清除、新建、管理、选择等关系写操作；保留配电箱下拉自动筛选、列表只读展示和设备导出字段。</li>
           <li><strong>已确认：</strong>配电箱及设备关联由其他平台维护并同步，GVP 只读消费同一批同步结果；配电箱名称文字使用同步颜色或既有配置颜色，不增加颜色图标。</li>
-          <li><strong>已确认：</strong>历史记录字段不变，只在设备故障消息内容中增加楼栋、房间、配电箱和 IP 地址；配电箱名称文字使用其配置颜色，不增加颜色图标。</li>
+          <li><strong>已确认：</strong>历史记录中的“设备故障”改为“设备离线”，消息内容继续显示楼栋、房间、配电箱和 IP 地址；配电箱名称文字使用其配置颜色，不增加颜色图标。</li>
           <li><strong>待确认：</strong>外部同步协议、主键、频率、失败和延迟处理，以及停用或删除关系后的显示和恢复规则。</li>
-          <li><strong>已确认：</strong>楼栋、房间、配电箱和设备 IP 信息完整时，故障消息按“[楼栋 / 房间 / 配电箱] 原故障内容 IP地址：xxx.xxx.xxx.xxx”显示；任一项缺失时直接沿用原故障字段，不追加定位或 IP，不显示“未配置”且不保留空层级。</li>
+          <li><strong>已确认：</strong>楼栋、房间、配电箱和设备 IP 信息完整时，离线消息按“[楼栋 / 房间 / 配电箱] 原消息内容 IP地址：xxx.xxx.xxx.xxx”显示；任一项缺失时直接沿用原消息，不追加定位或 IP，不显示“未配置”且不保留空层级。</li>
         </ol>
         <div class="rules-note">评审确认后，应将上述假设回写联合 PRD，再进入正式开发。此页面数据均为脱敏 Mock 数据，刷新页面即可恢复。</div>`,
       footer: `<button class="button" type="button" data-action="reset-demo">${icon("refresh")}恢复初始数据</button><button class="button primary" type="button" data-action="close-modal">知道了</button>`,
@@ -1002,9 +1027,9 @@
       render();
     }
     if (target.matches('[data-action="select-all-cabinet-functions"]')) {
-      const { visibleComponents } = getCabinetFunctionQueryContext();
+      const { visibleDevices } = getCabinetDeviceQueryContext();
       const view = state.cabinetFunctions;
-      const pageItems = visibleComponents.slice((view.page - 1) * view.pageSize, view.page * view.pageSize);
+      const pageItems = visibleDevices.slice((view.page - 1) * view.pageSize, view.page * view.pageSize);
       pageItems.forEach((item) => (target.checked ? view.selected.add(item.id) : view.selected.delete(item.id)));
       render();
     }
@@ -1284,32 +1309,34 @@
       return;
     }
     if (action === "export-cabinet-functions") {
-      const { visibleComponents } = getCabinetFunctionQueryContext();
-      const statusLabels = { online: "在线", offline: "离线", fault: "故障" };
-      const rows = visibleComponents.map((component) => {
-        const cabinet = getCabinet(component.cabinetId);
+      const { visibleDevices } = getCabinetDeviceQueryContext();
+      const rows = visibleDevices.map((device) => {
+        const cabinet = displayCabinet(device);
         return [
-          component.name,
-          component.type,
-          statusLabels[component.deviceStatus] ?? "离线",
-          component.page,
+          device.remark,
+          device.type,
+          device.status === "online" ? "在线" : "离线",
+          device.protocol,
+          device.model,
+          device.product,
+          device.address,
+          device.connection,
+          device.ip,
           cabinet?.name ?? "",
-          component.remark,
-          componentDeviceName(component),
-          componentLocationPath(component),
+          deviceLocationPath(device),
         ];
       });
-      downloadCsv("配电箱功能查询-筛选结果.csv", ["功能名称", "功能类型", "状态", "所属页面", "配电箱", "设备备注", "设备名称", "楼层节点"], rows);
+      downloadCsv("配电箱设备查询-筛选结果.csv", ["设备备注", "设备类型", "状态", "协议", "型号", "产品名", "设备地址", "连接方式", "所属IP", "配电箱", "楼层节点"], rows);
       showToast(`已导出当前筛选后的全部数据，共 ${rows.length} 条`, "success");
       return;
     }
     if (action === "export-devices") {
       const rows = filteredDevices().map((device) => {
         const cabinet = displayCabinet(device);
-        return [device.remark, device.type, device.status === "online" ? "在线" : "离线", device.protocol, device.model, device.product, device.address, device.connection, device.ip, cabinet?.name ?? ""];
+        return [device.remark, device.type, device.status === "online" ? "在线" : "离线", device.protocol, device.model, device.product, device.address, device.connection, device.ip, cabinet?.name ?? "", deviceLocationPath(device)];
       });
-      downloadCsv("设备管理-导出.csv", ["设备备注", "设备类型", "状态", "协议", "型号", "产品名", "设备地址", "连接方式", "所属IP", "配电箱"], rows);
-      showToast("已导出当前筛选结果，包含配电箱字段", "success");
+      downloadCsv("设备管理-导出.csv", ["设备备注", "设备类型", "状态", "协议", "型号", "产品名", "设备地址", "连接方式", "所属IP", "配电箱", "楼层节点"], rows);
+      showToast("已导出当前筛选结果，包含配电箱和楼层节点字段", "success");
       return;
     }
     if (action === "modify-ip") {
@@ -1364,7 +1391,7 @@
       state.cabinetFunctions.selectedAreaId = "all";
       state.cabinetFunctions.selectedCabinetId = "cab-001";
       state.cabinetFunctions.expandedAreaIds = new Set(["all", ...model.locations.map((building) => building.id)]);
-      state.cabinetFunctions.filterField = "name";
+      state.cabinetFunctions.filterField = "remark";
       state.cabinetFunctions.filterValue = "";
       state.cabinetFunctions.page = 1;
       state.cabinetFunctions.pageSize = 10;
