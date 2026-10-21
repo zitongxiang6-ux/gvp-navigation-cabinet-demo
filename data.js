@@ -108,6 +108,24 @@
     { id: "his-024", type: "系统操作", at: "2026-08-24 09:36:55", message: "外部平台同步解除设备与配电箱关联" },
   ];
 
+  const energyRecords = [
+    { month: "2025-08", total: 10120, lighting: 3036, socket: 5566, hvac: 1518 },
+    { month: "2025-09", total: 10960, lighting: 3288, socket: 6028, hvac: 1644 },
+    { month: "2025-10", total: 11480, lighting: 3444, socket: 6314, hvac: 1722 },
+    { month: "2025-11", total: 10860, lighting: 3258, socket: 5973, hvac: 1629 },
+    { month: "2025-12", total: 10520, lighting: 3156, socket: 5786, hvac: 1578 },
+    { month: "2026-01", total: 11240, lighting: 3372, socket: 6182, hvac: 1686 },
+    { month: "2026-02", total: 10780, lighting: 3234, socket: 5929, hvac: 1617 },
+    { month: "2026-03", total: 12150, lighting: 3645, socket: 6682, hvac: 1823 },
+    { month: "2026-04", total: 10950, lighting: 3285, socket: 6022, hvac: 1643 },
+    { month: "2026-05", total: 11820, lighting: 3546, socket: 6501, hvac: 1773 },
+    { month: "2026-06", total: 11640, lighting: 3492, socket: 6402, hvac: 1746 },
+    { month: "2026-07", total: 11380, lighting: 3414, socket: 6259, hvac: 1707 },
+    { month: "2026-08", total: 11220, lighting: 3366, socket: 6171, hvac: 1683 },
+    { month: "2026-09", total: 12240, lighting: 3672, socket: 6732, hvac: 1836 },
+    { month: "2026-10", total: 12860, lighting: 3858, socket: 7073, hvac: 1929 },
+  ];
+
   function clone(value) {
     return JSON.parse(JSON.stringify(value));
   }
@@ -120,6 +138,7 @@
         cabinets: clone(cabinets),
         devices: clone(devices),
         history: clone(history),
+        energyRecords: clone(energyRecords),
       };
     },
   };

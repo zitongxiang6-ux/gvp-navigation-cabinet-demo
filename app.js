@@ -14,6 +14,9 @@
 
   const state = {
     page: getPageFromHash(),
+    overview: {
+      selectedMonth: "2026-10",
+    },
     navigation: {
       selectedLocation: "room-a102",
       editorComponentId: null,
@@ -63,7 +66,7 @@
       return "cabinet-functions";
     }
     const validPages = ["overview", "navigation", "cabinet-functions", "history", "devices"];
-    return validPages.includes(value) ? value : "cabinet-functions";
+    return validPages.includes(value) ? value : "overview";
   }
 
   function escapeHtml(value) {
@@ -263,6 +266,7 @@
   function render() {
     state.page = getPageFromHash();
     if (state.page !== "navigation") state.navigation.editorComponentId = null;
+    document.body.classList.toggle("overview-mode", state.page === "overview");
     pageTitle.textContent = pageNames[state.page] ?? "GVP";
     document.querySelectorAll(".side-nav-item[data-page]").forEach((item) => {
       const target = item.dataset.page;
@@ -270,6 +274,9 @@
     });
 
     switch (state.page) {
+      case "overview":
+        app.innerHTML = renderOverviewPage();
+        break;
       case "navigation":
         app.innerHTML = state.navigation.editorComponentId ? renderComponentEditorPage() : renderNavigationPage();
         break;
@@ -290,6 +297,207 @@
       input.indeterminate = true;
     });
     app.focus({ preventScroll: true });
+  }
+
+  function formatEnergy(value) {
+    return new Intl.NumberFormat("zh-CN", { maximumFractionDigits: 0 }).format(value);
+  }
+
+  function formatRate(value) {
+    if (!Number.isFinite(value)) return "--";
+    return `${value >= 0 ? "+" : ""}${value.toFixed(2)}%`;
+  }
+
+  function percentChange(current, previous) {
+    return previous ? ((current - previous) / previous) * 100 : Number.NaN;
+  }
+
+  function monthDisplay(month) {
+    const [year, value] = month.split("-");
+    return `${year}.${value}`;
+  }
+
+  function overviewEnergyContext() {
+    const records = model.energyRecords;
+    const selectedIndex = Math.max(0, records.findIndex((record) => record.month === state.overview.selectedMonth));
+    const current = records[selectedIndex];
+    const previous = records[selectedIndex - 1];
+    const priorYear = records[selectedIndex - 12];
+    const year = current.month.slice(0, 4);
+    const annualRecords = records.filter((record) => record.month.startsWith(`${year}-`) && record.month <= current.month);
+    const annual = annualRecords.reduce(
+      (totals, record) => ({
+        total: totals.total + record.total,
+        lighting: totals.lighting + record.lighting,
+        socket: totals.socket + record.socket,
+        hvac: totals.hvac + record.hvac,
+      }),
+      { total: 0, lighting: 0, socket: 0, hvac: 0 },
+    );
+    return {
+      current,
+      annual,
+      trend: records.slice(Math.max(0, selectedIndex - 11), selectedIndex + 1),
+      monthOnMonth: percentChange(current.total, previous?.total),
+      yearOnYear: percentChange(current.total, priorYear?.total),
+    };
+  }
+
+  function overviewSummaryRows(values) {
+    return `
+      <div class="overview-energy-total"><strong>${formatEnergy(values.total)}</strong><span>kWh</span></div>
+      <dl class="overview-energy-breakdown">
+        <div><dt><i class="energy-key lighting"></i>照明用电量</dt><dd>${formatEnergy(values.lighting)} <span>kWh</span></dd></div>
+        <div><dt><i class="energy-key socket"></i>插排用电量</dt><dd>${formatEnergy(values.socket)} <span>kWh</span></dd></div>
+        <div><dt><i class="energy-key hvac"></i>空调用电量</dt><dd>${formatEnergy(values.hvac)} <span>kWh</span></dd></div>
+      </dl>`;
+  }
+
+  function energyTrendChart(records) {
+    const width = 1120;
+    const height = 310;
+    const plot = { left: 66, right: 24, top: 22, bottom: 52 };
+    const plotWidth = width - plot.left - plot.right;
+    const plotHeight = height - plot.top - plot.bottom;
+    const maxValue = Math.ceil(Math.max(...records.map((record) => record.total)) / 4000) * 4000;
+    const x = (index) => plot.left + (records.length <= 1 ? 0 : (index * plotWidth) / (records.length - 1));
+    const y = (value) => plot.top + plotHeight - (value / maxValue) * plotHeight;
+    const dimensions = [
+      ["total", "总用电量", "#2f3448"],
+      ["lighting", "照明用电量", "#2f92f3"],
+      ["hvac", "空调用电量", "#f06b72"],
+      ["socket", "插排用电量", "#78b73c"],
+    ];
+    const grid = Array.from({ length: 5 }, (_, index) => {
+      const value = (maxValue * (4 - index)) / 4;
+      const pointY = plot.top + (index * plotHeight) / 4;
+      return `<g><line x1="${plot.left}" y1="${pointY}" x2="${width - plot.right}" y2="${pointY}" class="energy-grid-line"/><text x="${plot.left - 14}" y="${pointY + 4}" text-anchor="end" class="energy-axis-label">${formatEnergy(value)}</text></g>`;
+    }).join("");
+    const lines = dimensions
+      .map(([key, label, color]) => {
+        const points = records.map((record, index) => `${x(index).toFixed(1)},${y(record[key]).toFixed(1)}`).join(" ");
+        const markers = records
+          .map((record, index) => `<circle cx="${x(index).toFixed(1)}" cy="${y(record[key]).toFixed(1)}" r="3.2" fill="${color}" class="energy-line-point"><title>${monthDisplay(record.month)} ${label}：${formatEnergy(record[key])} kWh</title></circle>`)
+          .join("");
+        return `<polyline points="${points}" fill="none" stroke="${color}" stroke-width="${key === "total" ? 2.8 : 2.25}" stroke-linecap="round" stroke-linejoin="round" class="energy-series-line"/>${markers}`;
+      })
+      .join("");
+    const hitTargets = records
+      .map((record, index) => {
+        const allRecords = model.energyRecords;
+        const recordIndex = allRecords.findIndex((item) => item.month === record.month);
+        const previous = allRecords[recordIndex - 1];
+        const priorYear = allRecords[recordIndex - 12];
+        return `<circle cx="${x(index).toFixed(1)}" cy="${y(record.total).toFixed(1)}" r="13" fill="transparent" tabindex="0" class="energy-point-hit" data-energy-tooltip="true" data-month="${record.month}" data-total="${record.total}" data-mom="${formatRate(percentChange(record.total, previous?.total))}" data-yoy="${formatRate(percentChange(record.total, priorYear?.total))}" aria-label="${monthDisplay(record.month)}，用电量 ${formatEnergy(record.total)} 千瓦时，环比 ${formatRate(percentChange(record.total, previous?.total))}，同比 ${formatRate(percentChange(record.total, priorYear?.total))}"></circle>`;
+      })
+      .join("");
+    const xLabels = records
+      .map((record, index) => `<text x="${x(index).toFixed(1)}" y="${height - 19}" text-anchor="middle" class="energy-axis-label">${monthDisplay(record.month)}</text>`)
+      .join("");
+    return `
+      <svg class="energy-trend-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="近十二个月用电量变化趋势折线图">
+        ${grid}
+        <line x1="${plot.left}" y1="${plot.top}" x2="${plot.left}" y2="${height - plot.bottom}" class="energy-axis-line"/>
+        <line x1="${plot.left}" y1="${height - plot.bottom}" x2="${width - plot.right}" y2="${height - plot.bottom}" class="energy-axis-line"/>
+        ${lines}
+        ${hitTargets}
+        ${xLabels}
+        <text x="14" y="18" class="energy-axis-title">用电量（kWh）</text>
+      </svg>`;
+  }
+
+  function renderWelcomeIllustration() {
+    return `
+      <svg class="overview-welcome-art" viewBox="0 0 680 300" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+        <defs>
+          <linearGradient id="welcomeGradient" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#4594ee"/><stop offset="1" stop-color="#4934e9"/></linearGradient>
+          <linearGradient id="towerGradient" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#22bfea"/><stop offset="1" stop-color="#3751eb"/></linearGradient>
+        </defs>
+        <rect width="680" height="300" fill="url(#welcomeGradient)"/>
+        <g opacity=".34" fill="#27a9ec"><polygon points="0,84 68,126 68,250 0,284"/><polygon points="71,168 143,122 211,166 211,300 71,300"/><polygon points="205,176 264,134 322,172 322,300 205,300"/><polygon points="307,108 382,62 457,109 457,300 307,300"/><polygon points="498,180 559,142 618,178 618,300 498,300"/><polygon points="597,138 680,92 680,300 597,300"/></g>
+        <g opacity=".9"><rect x="88" y="166" width="126" height="134" rx="4" fill="#5131e9"/><polygon points="88,166 153,132 214,166" fill="#4257ee"/><rect x="280" y="176" width="76" height="124" fill="#3368ea"/><polygon points="280,176 318,151 356,176" fill="#3786ee"/><rect x="397" y="133" width="86" height="167" fill="url(#towerGradient)"/><polygon points="397,133 439,105 483,133" fill="#29a5eb"/><rect x="559" y="211" width="70" height="89" fill="#315de5"/><polygon points="559,211 594,190 629,211" fill="#2d90ed"/></g>
+        <g transform="translate(117 139)"><path d="M0 38 72 0v50L0 88Z" fill="#67cff1"/><path d="M7 42 64 12v33L7 75Z" fill="#d8f3fb"/><path d="M23 57c8-22 11-26 19-29 5 10 7 15 19 18" fill="none" stroke="#6674ec" stroke-width="8" stroke-linecap="round"/></g>
+        <g transform="translate(203 162)"><ellipse cx="23" cy="32" rx="20" ry="8" fill="#1f7ae9"/><path d="M9 30c7-18 17-24 28-19 8 4 10 15 4 23" fill="none" stroke="#42c8ef" stroke-width="5"/><circle cx="23" cy="27" r="9" fill="#24bce9"/></g>
+        <g transform="translate(168 139)" fill="#fff"><circle cx="0" cy="0" r="6"/><path d="M-3 7h7l3 22H-6Z"/><path d="m0 13 15 7m-15-2-12 9" stroke="#fff" stroke-width="3" stroke-linecap="round"/></g>
+      </svg>`;
+  }
+
+  function renderOverviewPage() {
+    const energy = overviewEnergyContext();
+    const lightingPercent = Math.round((energy.current.lighting / energy.current.total) * 100);
+    const socketPercent = Math.round((energy.current.socket / energy.current.total) * 100);
+    const hvacPercent = 100 - lightingPercent - socketPercent;
+    return `
+      <section class="page overview-page">
+        <div class="overview-top-grid">
+          <div class="overview-stat-stack">
+            <article class="overview-stat-card">
+              <span>设备总数</span><strong class="purple">16</strong>
+              <div class="overview-stat-counts"><span>15</span><span>1</span></div>
+              <div class="overview-progress"><i style="width:93.75%"></i></div>
+              <div class="overview-stat-labels"><span>在线</span><span>离线</span></div>
+            </article>
+            <article class="overview-stat-card">
+              <span>功能总数</span><strong class="blue">56</strong>
+              <div class="overview-stat-counts"><span>53</span><span>3</span></div>
+              <div class="overview-progress blue"><i style="width:94.64%"></i></div>
+              <div class="overview-stat-labels"><span>在线</span><span>离线</span></div>
+            </article>
+          </div>
+          <article class="overview-card overview-function-card">
+            <header class="overview-card-title">功能占比</header>
+            <div class="overview-function-chart" role="img" aria-label="功能占比：照明类 50%，其他 39.29%，开关 7.14%，空调 3.57%">
+              <div class="overview-function-donut"><span>56<small>功能点</small></span></div>
+              <span class="function-label lighting">50.00%<small>照明类</small></span>
+              <span class="function-label other">39.29%<small>其他</small></span>
+              <span class="function-label switch">7.14%<small>开关</small></span>
+              <span class="function-label hvac">3.57%<small>空调</small></span>
+            </div>
+          </article>
+          <article class="overview-welcome-card">
+            ${renderWelcomeIllustration()}
+            <div class="overview-welcome-copy"><strong>Hello, admin</strong><span>欢迎使用 HDL GraView 可视化管理平台</span></div>
+          </article>
+        </div>
+
+        <section class="energy-dashboard" aria-labelledby="energyDashboardTitle">
+          <header class="energy-dashboard-header">
+            <div><h1 id="energyDashboardTitle">用电分析</h1><p>能耗数据为评审 Demo 使用的脱敏 Mock 数据</p></div>
+            <label class="energy-period-field" for="overviewPeriod"><span>统计月份</span><select id="overviewPeriod">
+              ${["2026-08", "2026-09", "2026-10"].map((month) => `<option value="${month}"${state.overview.selectedMonth === month ? " selected" : ""}>${month.replace("-", "年")}月</option>`).join("")}
+            </select></label>
+          </header>
+          <div class="energy-overview-grid">
+            <article class="overview-card energy-summary-card">
+              <header class="overview-card-title">用电概览</header>
+              <div class="energy-summary-columns">
+                <section><h2>当月累计电量</h2>${overviewSummaryRows(energy.current)}</section>
+                <section><h2>${energy.current.month.slice(0, 4)} 年累计电量</h2>${overviewSummaryRows(energy.annual)}</section>
+              </div>
+              <div class="energy-rate-row">
+                <span>当月环比 <strong class="${energy.monthOnMonth >= 0 ? "up" : "down"}">${formatRate(energy.monthOnMonth)}</strong></span>
+                <span>当月同比 <strong class="${energy.yearOnYear >= 0 ? "up" : "down"}">${formatRate(energy.yearOnYear)}</strong></span>
+              </div>
+            </article>
+            <article class="overview-card energy-distribution-card">
+              <header class="overview-card-title">当月电力消耗分布</header>
+              <div class="energy-distribution-body">
+                <div class="energy-distribution-donut" style="--lighting:${lightingPercent}%;--socket:${lightingPercent + socketPercent}%" role="img" aria-label="照明 ${lightingPercent}%，插排 ${socketPercent}%，空调 ${hvacPercent}%"><span><strong>${formatEnergy(energy.current.total)}</strong><small>总用电量 / kWh</small></span></div>
+                <div class="energy-distribution-legend">
+                  <div><i class="energy-key lighting"></i><span>照明</span><strong>${lightingPercent}%</strong><small>${formatEnergy(energy.current.lighting)} kWh</small></div>
+                  <div><i class="energy-key socket"></i><span>插排</span><strong>${socketPercent}%</strong><small>${formatEnergy(energy.current.socket)} kWh</small></div>
+                  <div><i class="energy-key hvac"></i><span>空调</span><strong>${hvacPercent}%</strong><small>${formatEnergy(energy.current.hvac)} kWh</small></div>
+                </div>
+              </div>
+            </article>
+          </div>
+          <article class="overview-card energy-trend-card">
+            <header class="energy-trend-header"><div><h2>用电量变化趋势</h2><p>鼠标移至总用电量节点可查看当月用电量、环比和同比</p></div><div class="energy-trend-legend"><span><i class="total"></i>总用电量</span><span><i class="lighting"></i>照明用电量</span><span><i class="hvac"></i>空调用电量</span><span><i class="socket"></i>插排用电量</span></div></header>
+            <div class="energy-chart-wrap">${energyTrendChart(energy.trend)}</div>
+          </article>
+        </section>
+        <div class="energy-point-tooltip" id="energyPointTooltip" role="tooltip" aria-hidden="true"></div>
+      </section>`;
   }
 
   function renderNavigationPage() {
@@ -872,6 +1080,8 @@
       large: true,
       body: `
         <ol class="rules-list">
+          <li><strong>本次首页 Demo：</strong>按用户提供的页面截图保留设备总数、功能总数、功能占比和欢迎区，并用“用电概览、当月电力消耗分布、用电量变化趋势”替换原五个状态仪表。</li>
+          <li><strong>演示假设：</strong>首页能耗数值为脱敏 Mock 数据；统计月份切换、环比、同比和折线节点悬停仅用于评审信息结构与交互，不代表真实接口已经接入。</li>
           <li><strong>已确认：</strong>导航只保留组件视图，按参考截图使用页面树、页面面包屑、全开/全关和不同类型控制组件。</li>
           <li><strong>已确认：</strong>主导航保留独立“配电箱设备查询”，删除“设备功能”菜单及整个页面；旧“设备功能”和“配电箱设备列表”地址兼容进入配电箱设备查询。</li>
           <li><strong>已确认：</strong>配电箱设备查询左侧将“天府校区—楼栋—房间”区域树与该区域的现有配电箱/“未分类”并排展示；校区和楼栋节点可分别展开/收起，点击节点名称仍立即筛选右侧内容。</li>
@@ -982,6 +1192,11 @@
 
   document.addEventListener("change", (event) => {
     const target = event.target;
+    if (target.id === "overviewPeriod") {
+      state.overview.selectedMonth = target.value;
+      render();
+      return;
+    }
     if (target.id === "cabinetFunctionFilterField") {
       state.cabinetFunctions.filterField = target.value;
       state.cabinetFunctions.filterValue = "";
@@ -1372,6 +1587,7 @@
     }
     if (action === "reset-demo") {
       model = window.GVP_DEMO_DATA.create();
+      state.overview.selectedMonth = "2026-10";
       state.devices.selected.clear();
       state.cabinetFunctions.selectedAreaId = "all";
       state.cabinetFunctions.selectedCabinetId = "cab-001";
@@ -1406,10 +1622,51 @@
     }
   });
 
+  function updateEnergyTooltip(target, clientX, clientY) {
+    const tooltip = document.getElementById("energyPointTooltip");
+    if (!tooltip || !target) return;
+    tooltip.innerHTML = `<strong>${escapeHtml(monthDisplay(target.dataset.month))}</strong><span>当月用电量 <b>${formatEnergy(Number(target.dataset.total))} kWh</b></span><span>环比增速 <b>${escapeHtml(target.dataset.mom)}</b></span><span>同比增速 <b>${escapeHtml(target.dataset.yoy)}</b></span>`;
+    tooltip.style.left = `${Math.min(window.innerWidth - 230, Math.max(12, clientX + 14))}px`;
+    tooltip.style.top = `${Math.min(window.innerHeight - 140, Math.max(12, clientY + 14))}px`;
+    tooltip.classList.add("visible");
+    tooltip.setAttribute("aria-hidden", "false");
+  }
+
+  document.addEventListener("pointerover", (event) => {
+    const point = event.target.closest?.("[data-energy-tooltip]");
+    if (point) updateEnergyTooltip(point, event.clientX, event.clientY);
+  });
+
+  document.addEventListener("pointermove", (event) => {
+    const point = event.target.closest?.("[data-energy-tooltip]");
+    if (point) updateEnergyTooltip(point, event.clientX, event.clientY);
+  });
+
+  document.addEventListener("pointerout", (event) => {
+    if (!event.target.closest?.("[data-energy-tooltip]")) return;
+    const tooltip = document.getElementById("energyPointTooltip");
+    tooltip?.classList.remove("visible");
+    tooltip?.setAttribute("aria-hidden", "true");
+  });
+
+  document.addEventListener("focusin", (event) => {
+    const point = event.target.closest?.("[data-energy-tooltip]");
+    if (!point) return;
+    const bounds = point.getBoundingClientRect();
+    updateEnergyTooltip(point, bounds.left + bounds.width / 2, bounds.top + bounds.height / 2);
+  });
+
+  document.addEventListener("focusout", (event) => {
+    if (!event.target.closest?.("[data-energy-tooltip]")) return;
+    const tooltip = document.getElementById("energyPointTooltip");
+    tooltip?.classList.remove("visible");
+    tooltip?.setAttribute("aria-hidden", "true");
+  });
+
   window.addEventListener("hashchange", render);
 
   if (!window.location.hash) {
-    window.location.hash = "cabinet-functions";
+    window.location.hash = "overview";
   } else {
     render();
   }
