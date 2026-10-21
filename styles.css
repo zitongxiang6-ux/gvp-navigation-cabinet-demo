@@ -3995,8 +3995,9 @@ textarea.form-control {
 }
 
 .overview-page {
-  max-width: 1820px;
-  margin: 0 auto;
+  width: 100%;
+  max-width: none;
+  margin: 0;
 }
 
 .overview-card,
@@ -4248,13 +4249,6 @@ textarea.form-control {
 
 .energy-dashboard-header h1 {
   font-size: 20px;
-}
-
-.energy-dashboard-header p,
-.energy-trend-header p {
-  margin: 6px 0 0;
-  color: #9aa0b2;
-  font-size: 12px;
 }
 
 .energy-period-field {
@@ -4574,52 +4568,43 @@ textarea.form-control {
   stroke-width: 1.5;
 }
 
-.energy-point-hit {
-  cursor: help;
-  outline: none;
-}
-
-.energy-point-hit:focus {
-  stroke: rgb(139 76 232 / 55%);
-  stroke-width: 2;
-}
-
-.energy-point-tooltip {
-  position: fixed;
-  z-index: 300;
-  display: none;
-  width: 212px;
-  padding: 12px 14px;
-  color: #6e7488;
-  background: rgb(39 43 62 / 96%);
-  border: 1px solid rgb(255 255 255 / 9%);
-  border-radius: 7px;
-  box-shadow: 0 12px 32px rgb(22 25 42 / 28%);
+.energy-current-callout {
   pointer-events: none;
-  font-size: 11px;
+  filter: drop-shadow(0 7px 13px rgb(25 29 47 / 24%));
 }
 
-.energy-point-tooltip.visible {
-  display: grid;
-  gap: 7px;
+.energy-current-callout rect,
+.energy-current-callout-arrow {
+  fill: #30354a;
 }
 
-.energy-point-tooltip strong {
-  margin-bottom: 2px;
-  color: #fff;
-  font-size: 13px;
+.energy-current-tooltip-month,
+.energy-current-tooltip-label,
+.energy-current-tooltip-value {
+  font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
 }
 
-.energy-point-tooltip span {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  color: #c4c8d5;
+.energy-current-tooltip-month {
+  fill: #fff;
+  font-size: 10px;
+  font-weight: 700;
 }
 
-.energy-point-tooltip b {
-  color: #fff;
+.energy-current-tooltip-label {
+  fill: #c8ccda;
+  font-size: 9px;
+}
+
+.energy-current-tooltip-value {
+  fill: #fff;
+  font-size: 9px;
   font-weight: 600;
+}
+
+.energy-current-point-ring {
+  fill: #fff;
+  stroke: #30354a;
+  stroke-width: 3;
 }
 
 @media (max-width: 1480px) {

@@ -382,15 +382,30 @@
         return `<polyline points="${points}" fill="none" stroke="${color}" stroke-width="${key === "total" ? 2.8 : 2.25}" stroke-linecap="round" stroke-linejoin="round" class="energy-series-line"/>${markers}`;
       })
       .join("");
-    const hitTargets = records
-      .map((record, index) => {
-        const allRecords = model.energyRecords;
-        const recordIndex = allRecords.findIndex((item) => item.month === record.month);
-        const previous = allRecords[recordIndex - 1];
-        const priorYear = allRecords[recordIndex - 12];
-        return `<circle cx="${x(index).toFixed(1)}" cy="${y(record.total).toFixed(1)}" r="13" fill="transparent" tabindex="0" class="energy-point-hit" data-energy-tooltip="true" data-month="${record.month}" data-total="${record.total}" data-mom="${formatRate(percentChange(record.total, previous?.total))}" data-yoy="${formatRate(percentChange(record.total, priorYear?.total))}" aria-label="${monthDisplay(record.month)}，用电量 ${formatEnergy(record.total)} 千瓦时，环比 ${formatRate(percentChange(record.total, previous?.total))}，同比 ${formatRate(percentChange(record.total, priorYear?.total))}"></circle>`;
-      })
-      .join("");
+    const currentRecord = records.at(-1);
+    const currentIndex = records.length - 1;
+    const allRecordIndex = model.energyRecords.findIndex((record) => record.month === currentRecord.month);
+    const previousRecord = model.energyRecords[allRecordIndex - 1];
+    const priorYearRecord = model.energyRecords[allRecordIndex - 12];
+    const currentMom = formatRate(percentChange(currentRecord.total, previousRecord?.total));
+    const currentYoy = formatRate(percentChange(currentRecord.total, priorYearRecord?.total));
+    const currentPointX = x(currentIndex);
+    const currentPointY = y(currentRecord.total);
+    const calloutWidth = 162;
+    const calloutHeight = 82;
+    const calloutX = Math.max(plot.left + 8, currentPointX - calloutWidth - 14);
+    const calloutY = Math.max(plot.top + 4, Math.min(currentPointY - calloutHeight / 2, height - plot.bottom - calloutHeight - 4));
+    const arrowY = currentPointY - calloutY;
+    const currentCallout = `
+      <g class="energy-current-callout" transform="translate(${calloutX.toFixed(1)} ${calloutY.toFixed(1)})" role="note" aria-label="当月 ${monthDisplay(currentRecord.month)}，用电量 ${formatEnergy(currentRecord.total)} 千瓦时，环比 ${currentMom}，同比 ${currentYoy}">
+        <rect width="${calloutWidth}" height="${calloutHeight}" rx="6"/>
+        <path class="energy-current-callout-arrow" d="M ${calloutWidth} ${(arrowY - 6).toFixed(1)} L ${calloutWidth + 12} ${arrowY.toFixed(1)} L ${calloutWidth} ${(arrowY + 6).toFixed(1)} Z"/>
+        <text x="12" y="18" class="energy-current-tooltip-month">${monthDisplay(currentRecord.month)}</text>
+        <text x="12" y="39" class="energy-current-tooltip-label">当月用电量</text><text x="150" y="39" text-anchor="end" class="energy-current-tooltip-value">${formatEnergy(currentRecord.total)} kWh</text>
+        <text x="12" y="57" class="energy-current-tooltip-label">环比增速</text><text x="150" y="57" text-anchor="end" class="energy-current-tooltip-value">${currentMom}</text>
+        <text x="12" y="75" class="energy-current-tooltip-label">同比增速</text><text x="150" y="75" text-anchor="end" class="energy-current-tooltip-value">${currentYoy}</text>
+      </g>
+      <circle cx="${currentPointX.toFixed(1)}" cy="${currentPointY.toFixed(1)}" r="5.5" class="energy-current-point-ring"/>`;
     const xLabels = records
       .map((record, index) => `<text x="${x(index).toFixed(1)}" y="${height - 19}" text-anchor="middle" class="energy-axis-label">${monthDisplay(record.month)}</text>`)
       .join("");
@@ -400,7 +415,7 @@
         <line x1="${plot.left}" y1="${plot.top}" x2="${plot.left}" y2="${height - plot.bottom}" class="energy-axis-line"/>
         <line x1="${plot.left}" y1="${height - plot.bottom}" x2="${width - plot.right}" y2="${height - plot.bottom}" class="energy-axis-line"/>
         ${lines}
-        ${hitTargets}
+        ${currentCallout}
         ${xLabels}
         <text x="14" y="18" class="energy-axis-title">用电量（kWh）</text>
       </svg>`;
@@ -462,7 +477,7 @@
 
         <section class="energy-dashboard" aria-labelledby="energyDashboardTitle">
           <header class="energy-dashboard-header">
-            <div><h1 id="energyDashboardTitle">用电分析</h1><p>能耗数据为评审 Demo 使用的脱敏 Mock 数据</p></div>
+            <h1 id="energyDashboardTitle">用电分析</h1>
             <label class="energy-period-field" for="overviewPeriod"><span>统计月份</span><select id="overviewPeriod">
               ${["2026-08", "2026-09", "2026-10"].map((month) => `<option value="${month}"${state.overview.selectedMonth === month ? " selected" : ""}>${month.replace("-", "年")}月</option>`).join("")}
             </select></label>
@@ -492,11 +507,10 @@
             </article>
           </div>
           <article class="overview-card energy-trend-card">
-            <header class="energy-trend-header"><div><h2>用电量变化趋势</h2><p>鼠标移至总用电量节点可查看当月用电量、环比和同比</p></div><div class="energy-trend-legend"><span><i class="total"></i>总用电量</span><span><i class="lighting"></i>照明用电量</span><span><i class="hvac"></i>空调用电量</span><span><i class="socket"></i>插排用电量</span></div></header>
+            <header class="energy-trend-header"><h2>用电量变化趋势</h2><div class="energy-trend-legend"><span><i class="total"></i>总用电量</span><span><i class="lighting"></i>照明用电量</span><span><i class="hvac"></i>空调用电量</span><span><i class="socket"></i>插排用电量</span></div></header>
             <div class="energy-chart-wrap">${energyTrendChart(energy.trend)}</div>
           </article>
         </section>
-        <div class="energy-point-tooltip" id="energyPointTooltip" role="tooltip" aria-hidden="true"></div>
       </section>`;
   }
 
@@ -1620,47 +1634,6 @@
     if (event.key === "Escape") {
       if (modalRoot.innerHTML) closeModal();
     }
-  });
-
-  function updateEnergyTooltip(target, clientX, clientY) {
-    const tooltip = document.getElementById("energyPointTooltip");
-    if (!tooltip || !target) return;
-    tooltip.innerHTML = `<strong>${escapeHtml(monthDisplay(target.dataset.month))}</strong><span>当月用电量 <b>${formatEnergy(Number(target.dataset.total))} kWh</b></span><span>环比增速 <b>${escapeHtml(target.dataset.mom)}</b></span><span>同比增速 <b>${escapeHtml(target.dataset.yoy)}</b></span>`;
-    tooltip.style.left = `${Math.min(window.innerWidth - 230, Math.max(12, clientX + 14))}px`;
-    tooltip.style.top = `${Math.min(window.innerHeight - 140, Math.max(12, clientY + 14))}px`;
-    tooltip.classList.add("visible");
-    tooltip.setAttribute("aria-hidden", "false");
-  }
-
-  document.addEventListener("pointerover", (event) => {
-    const point = event.target.closest?.("[data-energy-tooltip]");
-    if (point) updateEnergyTooltip(point, event.clientX, event.clientY);
-  });
-
-  document.addEventListener("pointermove", (event) => {
-    const point = event.target.closest?.("[data-energy-tooltip]");
-    if (point) updateEnergyTooltip(point, event.clientX, event.clientY);
-  });
-
-  document.addEventListener("pointerout", (event) => {
-    if (!event.target.closest?.("[data-energy-tooltip]")) return;
-    const tooltip = document.getElementById("energyPointTooltip");
-    tooltip?.classList.remove("visible");
-    tooltip?.setAttribute("aria-hidden", "true");
-  });
-
-  document.addEventListener("focusin", (event) => {
-    const point = event.target.closest?.("[data-energy-tooltip]");
-    if (!point) return;
-    const bounds = point.getBoundingClientRect();
-    updateEnergyTooltip(point, bounds.left + bounds.width / 2, bounds.top + bounds.height / 2);
-  });
-
-  document.addEventListener("focusout", (event) => {
-    if (!event.target.closest?.("[data-energy-tooltip]")) return;
-    const tooltip = document.getElementById("energyPointTooltip");
-    tooltip?.classList.remove("visible");
-    tooltip?.setAttribute("aria-hidden", "true");
   });
 
   window.addEventListener("hashchange", render);
