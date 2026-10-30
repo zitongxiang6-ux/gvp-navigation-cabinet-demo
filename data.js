@@ -135,6 +135,55 @@
     { id: "elevator", name: "电梯", builtIn: false, enabled: true },
   ];
 
+  const energyAreas = [
+    {
+      id: "energy-area-building-1",
+      name: "1号楼",
+      value: "1号楼",
+      children: [
+        { id: "energy-area-building-1-floor-1", name: "一楼", value: "1号楼 / 一楼", children: [
+          { id: "energy-area-building-1-floor-1-lobby", name: "大堂", value: "1号楼 / 一楼 / 大堂" },
+          { id: "energy-area-building-1-floor-1-room-102", name: "102会议室", value: "1号楼 / 一楼 / 102会议室" },
+        ] },
+        { id: "energy-area-building-1-floor-2", name: "二楼", value: "1号楼 / 二楼", children: [
+          { id: "energy-area-building-1-floor-2-office-201", name: "201办公室", value: "1号楼 / 二楼 / 201办公室" },
+          { id: "energy-area-building-1-floor-2-room-202", name: "202会议室", value: "1号楼 / 二楼 / 202会议室" },
+        ] },
+        { id: "energy-area-building-1-floor-3", name: "三楼", value: "1号楼 / 三楼", children: [
+          { id: "energy-area-building-1-floor-3-office-301", name: "301开放办公区", value: "1号楼 / 三楼 / 301开放办公区" },
+        ] },
+        { id: "energy-area-building-1-public", name: "公共区", value: "1号楼 / 公共区" },
+        { id: "energy-area-building-1-elevator", name: "电梯", value: "1号楼 / 电梯" },
+      ],
+    },
+    {
+      id: "energy-area-building-2",
+      name: "2号楼",
+      value: "2号楼",
+      children: [
+        { id: "energy-area-building-2-floor-1", name: "一楼", value: "2号楼 / 一楼", children: [
+          { id: "energy-area-building-2-floor-1-room-101", name: "101教室", value: "2号楼 / 一楼 / 101教室" },
+        ] },
+        { id: "energy-area-building-2-floor-2", name: "二楼", value: "2号楼 / 二楼", children: [
+          { id: "energy-area-building-2-floor-2-room-202", name: "202培训室", value: "2号楼 / 二楼 / 202培训室" },
+          { id: "energy-area-building-2-floor-2-office-203", name: "203办公室", value: "2号楼 / 二楼 / 203办公室" },
+        ] },
+        { id: "energy-area-building-2-floor-3", name: "三楼", value: "2号楼 / 三楼", children: [
+          { id: "energy-area-building-2-floor-3-room-301", name: "301会议室", value: "2号楼 / 三楼 / 301会议室" },
+        ] },
+        { id: "energy-area-building-2-public", name: "公共区", value: "2号楼 / 公共区" },
+      ],
+    },
+    {
+      id: "energy-area-campus",
+      name: "园区",
+      value: "园区",
+      children: [
+        { id: "energy-area-campus-outdoor", name: "室外", value: "园区 / 室外" },
+      ],
+    },
+  ];
+
   const energyDevices = [
     { id: "energy-device-meter-04", remark: "A区总配电表", deviceType: "电表", status: "online", protocol: "Modbus TCP", model: "AMC96L-E4/KC", product: "安科瑞三相电能表", sourceType: "安科瑞电表", deviceName: "安科瑞三相电表 04", navigationArea: "1号楼 / 201 设备间" },
     { id: "energy-device-meter-06", remark: "B区动力电表", deviceType: "电表", status: "online", protocol: "Modbus TCP", model: "DTSD1352", product: "安科瑞多功能电表", sourceType: "安科瑞电表", deviceName: "安科瑞三相电表 06", navigationArea: "2号楼 / 201 设备间" },
@@ -154,12 +203,12 @@
   ];
 
   const energyStatistics = [
-    { id: "energy-001", name: "1号楼低区照明 A相", sourceType: "安科瑞电表", sourceDevice: "安科瑞多回路电表 01", circuit: "回路 01", mode: "分相", phase: "A相", navigationArea: "1号楼 / 201 设备间", statisticsArea: "1号楼 / 1-6层", usageType: "照明", currentEnergy: 1248, unit: "kWh", classificationStatus: "已分类", dataStatus: "正常", enabled: true, effectiveAt: "2026-10-29 09:20" },
-    { id: "energy-002", name: "1号楼办公插座 B相", sourceType: "安科瑞电表", sourceDevice: "安科瑞多回路电表 01", circuit: "回路 01", mode: "分相", phase: "B相", navigationArea: "1号楼 / 201 设备间", statisticsArea: "1号楼 / 3-6层", usageType: "插座", currentEnergy: 986, unit: "kWh", classificationStatus: "已分类", dataStatus: "正常", enabled: true, effectiveAt: "2026-10-29 09:20" },
+    { id: "energy-001", name: "1号楼低区照明 A相", sourceType: "安科瑞电表", sourceDevice: "安科瑞多回路电表 01", circuit: "回路 01", mode: "分相", phase: "A相", navigationArea: "1号楼 / 201 设备间", statisticsArea: "1号楼 / 一楼", usageType: "照明", currentEnergy: 1248, unit: "kWh", classificationStatus: "已分类", dataStatus: "正常", enabled: true, effectiveAt: "2026-10-29 09:20" },
+    { id: "energy-002", name: "1号楼办公插座 B相", sourceType: "安科瑞电表", sourceDevice: "安科瑞多回路电表 01", circuit: "回路 01", mode: "分相", phase: "B相", navigationArea: "1号楼 / 201 设备间", statisticsArea: "1号楼 / 三楼", usageType: "插座", currentEnergy: 986, unit: "kWh", classificationStatus: "已分类", dataStatus: "正常", enabled: true, effectiveAt: "2026-10-29 09:20" },
     { id: "energy-003", name: "1号楼公共空调 C相", sourceType: "安科瑞电表", sourceDevice: "安科瑞多回路电表 01", circuit: "回路 01", mode: "分相", phase: "C相", navigationArea: "1号楼 / 201 设备间", statisticsArea: "1号楼 / 公共区", usageType: "空调", currentEnergy: 744, unit: "kWh", classificationStatus: "部分分类", dataStatus: "正常", enabled: true, effectiveAt: "2026-10-29 09:20" },
     { id: "energy-004", name: "2号楼公共动力总表", sourceType: "安科瑞电表", sourceDevice: "安科瑞三相电表 02", circuit: "回路 03", mode: "整表", phase: "整表", navigationArea: "2号楼 / 201 设备间", statisticsArea: "2号楼 / 公共区", usageType: "动力", currentEnergy: 2216, unit: "kWh", classificationStatus: "已分类", dataStatus: "正常", enabled: true, effectiveAt: "2026-10-28 16:40" },
     { id: "energy-005", name: "1号楼电梯回路", sourceType: "众源空开", sourceDevice: "众源网关 A / 智能空开 05", circuit: "空开回路 05", mode: "回路", phase: "—", navigationArea: "1号楼 / 201 设备间", statisticsArea: "1号楼 / 电梯", usageType: "电梯", currentEnergy: 612, unit: "kWh", classificationStatus: "已分类", dataStatus: "正常", enabled: true, effectiveAt: "2026-10-27 11:08" },
-    { id: "energy-006", name: "2号楼会议室空调", sourceType: "众源空开", sourceDevice: "众源网关 B / 智能空开 12", circuit: "空开回路 12", mode: "回路", phase: "—", navigationArea: "2号楼 / 201 设备间", statisticsArea: "2号楼 / 202 培训室", usageType: "空调", currentEnergy: 0, unit: "kWh", classificationStatus: "已分类", dataStatus: "数据中断", enabled: true, effectiveAt: "2026-10-26 14:35" },
+    { id: "energy-006", name: "2号楼会议室空调", sourceType: "众源空开", sourceDevice: "众源网关 B / 智能空开 12", circuit: "空开回路 12", mode: "回路", phase: "—", navigationArea: "2号楼 / 201 设备间", statisticsArea: "2号楼 / 二楼 / 202培训室", usageType: "空调", currentEnergy: 0, unit: "kWh", classificationStatus: "已分类", dataStatus: "数据中断", enabled: true, effectiveAt: "2026-10-26 14:35" },
     { id: "energy-007", name: "1号楼备用回路", sourceType: "安科瑞电表", sourceDevice: "安科瑞多回路电表 03", circuit: "回路 08", mode: "整表", phase: "整表", navigationArea: "1号楼 / 201 设备间", statisticsArea: "—", usageType: "—", currentEnergy: 0, unit: "kWh", classificationStatus: "未分类", dataStatus: "正常", enabled: false, effectiveAt: "—" },
     { id: "energy-008", name: "室外景观回路", sourceType: "众源空开", sourceDevice: "众源网关 C / 智能空开 03", circuit: "空开回路 03", mode: "回路", phase: "—", navigationArea: "园区 / 室外", statisticsArea: "园区 / 室外", usageType: "照明", currentEnergy: 0, unit: "kWh", classificationStatus: "已分类", dataStatus: "来源失效", enabled: false, effectiveAt: "2026-10-24 10:02" },
   ];
@@ -178,6 +227,7 @@
         history: clone(history),
         energyRecords: clone(energyRecords),
         energyTypes: clone(energyTypes),
+        energyAreas: clone(energyAreas),
         energyDevices: clone(energyDevices),
         energyDeviceFunctions: clone(energyDeviceFunctions),
         energyStatistics: clone(energyStatistics),

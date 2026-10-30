@@ -1093,6 +1093,38 @@
     return [...new Set(model.energyStatistics.map((item) => item[field]).filter((value) => value && value !== "—"))];
   }
 
+  function energyAreaMatches(area, selectedArea) {
+    return selectedArea === "all" || area === selectedArea || area.startsWith(`${selectedArea} / `);
+  }
+
+  function renderEnergyAreaTreeNodes(nodes, selectedValue, context, targetKey = "", depth = 0) {
+    return nodes.map((node) => {
+      const hasChildren = Array.isArray(node.children) && node.children.length > 0;
+      const containsSelection = selectedValue === node.value || selectedValue.startsWith(`${node.value} / `);
+      const expanded = hasChildren && (depth === 0 || containsSelection);
+      return `
+        <div class="energy-region-node${expanded ? " expanded" : ""}" data-energy-region-node>
+          <div class="energy-region-node-row" style="--energy-region-depth:${depth}">
+            ${hasChildren ? `<button class="energy-region-branch" type="button" data-action="toggle-energy-region-node" aria-expanded="${expanded}" aria-label="展开或收起${escapeHtml(node.name)}"><i></i></button>` : `<span class="energy-region-branch-spacer"></span>`}
+            <button class="energy-region-option${selectedValue === node.value ? " selected" : ""}" type="button" data-action="select-energy-region" data-region-context="${escapeHtml(context)}" data-region-target="${escapeHtml(targetKey)}" data-region-value="${escapeHtml(node.value)}">${escapeHtml(node.name)}</button>
+          </div>
+          ${hasChildren ? `<div class="energy-region-children">${renderEnergyAreaTreeNodes(node.children, selectedValue, context, targetKey, depth + 1)}</div>` : ""}
+        </div>`;
+    }).join("");
+  }
+
+  function renderEnergyAreaPicker({ value, context, targetKey = "", allowAll = false, compact = false }) {
+    const displayValue = value === "all" ? "统计区域" : value;
+    return `
+      <div class="energy-region-picker${compact ? " compact" : ""}" data-energy-region-picker>
+        <button class="energy-region-trigger" type="button" data-action="toggle-energy-region-picker" aria-haspopup="tree" aria-expanded="false" title="${escapeHtml(displayValue)}"><span>${escapeHtml(displayValue)}</span><i></i></button>
+        <div class="energy-region-panel" role="tree">
+          ${allowAll ? `<button class="energy-region-all${value === "all" ? " selected" : ""}" type="button" data-action="select-energy-region" data-region-context="${escapeHtml(context)}" data-region-target="${escapeHtml(targetKey)}" data-region-value="all">全部区域</button>` : ""}
+          ${renderEnergyAreaTreeNodes(model.energyAreas, value, context, targetKey)}
+        </div>
+      </div>`;
+  }
+
   function filteredEnergyStatistics() {
     const view = state.energyClassification;
     const keyword = view.keyword.trim().toLocaleLowerCase("zh-CN");
@@ -1101,7 +1133,7 @@
       if (view.sourceType !== "all" && item.sourceType !== view.sourceType) return false;
       if (view.mode !== "all" && item.mode !== view.mode) return false;
       if (view.usageType !== "all" && item.usageType !== view.usageType) return false;
-      if (view.statisticsArea !== "all" && item.statisticsArea !== view.statisticsArea) return false;
+      if (!energyAreaMatches(item.statisticsArea, view.statisticsArea)) return false;
       if (view.classificationStatus !== "all" && item.classificationStatus !== view.classificationStatus) return false;
       if (view.enabled !== "all" && String(item.enabled) !== view.enabled) return false;
       if (view.dataStatus !== "all" && item.dataStatus !== view.dataStatus) return false;
@@ -1159,7 +1191,7 @@
               <select data-energy-filter="sourceType" aria-label="来源类型">${energyFilterOptions(uniqueEnergyValues("sourceType"), view.sourceType, "来源类型")}</select>
               <select data-energy-filter="mode" aria-label="统计模式">${energyFilterOptions(uniqueEnergyValues("mode"), view.mode, "统计模式")}</select>
               <select data-energy-filter="usageType" aria-label="用电类型">${energyFilterOptions(usageTypes, view.usageType, "用电类型")}</select>
-              <select data-energy-filter="statisticsArea" aria-label="统计区域">${energyFilterOptions(uniqueEnergyValues("statisticsArea"), view.statisticsArea, "统计区域")}</select>
+              ${renderEnergyAreaPicker({ value: view.statisticsArea, context: "filter", allowAll: true, compact: true })}
               <select data-energy-filter="classificationStatus" aria-label="分类状态">${energyFilterOptions(["已分类", "部分分类", "未分类"], view.classificationStatus, "分类状态")}</select>
               <select data-energy-filter="enabled" aria-label="启用状态"><option value="all"${view.enabled === "all" ? " selected" : ""}>启用状态</option><option value="true"${view.enabled === "true" ? " selected" : ""}>启用</option><option value="false"${view.enabled === "false" ? " selected" : ""}>停用</option></select>
               <select data-energy-filter="dataStatus" aria-label="数据状态">${energyFilterOptions(uniqueEnergyValues("dataStatus"), view.dataStatus, "数据状态")}</select>
@@ -1268,7 +1300,6 @@
         <div class="energy-wizard-copy"><h3>选择能源设备</h3></div>
         <div class="table-wrap energy-picker-table-wrap"><table class="data-table energy-picker-table"><colgroup><col style="width:56px"><col style="width:170px"><col style="width:100px"><col style="width:130px"><col style="width:190px"><col style="width:240px"></colgroup><thead><tr><th class="checkbox-cell"></th><th>设备备注</th><th>设备类型</th><th>协议</th><th>型号</th><th>产品名</th></tr></thead><tbody>${rows}</tbody></table></div>`;
     }
-    const areas = ["1号楼 / 1-6层", "1号楼 / 3-6层", "1号楼 / 公共区", "1号楼 / 电梯", "2号楼 / 公共区", "2号楼 / 202 培训室", "园区 / 室外"];
     const usageTypes = model.energyTypes.filter((item) => item.enabled).map((item) => item.name);
     const isMeter = draft.deviceType === "电表";
     const device = energyDraftDevice(draft);
@@ -1282,7 +1313,7 @@
       <div class="energy-assignment-list">
         ${energyDraftTargets(draft).map((target) => {
           const assignment = ensureEnergyAssignment(draft, target.key);
-          return `<div class="energy-assignment-row"><strong>${escapeHtml(target.label)}</strong><label><span>统计区域</span><select data-energy-assignment="area" data-target="${escapeHtml(target.key)}">${areas.map((area) => `<option value="${escapeHtml(area)}"${assignment.area === area ? " selected" : ""}>${escapeHtml(area)}</option>`).join("")}</select></label><label><span>用电类型</span><select data-energy-assignment="usage" data-target="${escapeHtml(target.key)}">${usageTypes.map((type) => `<option value="${escapeHtml(type)}"${assignment.usage === type ? " selected" : ""}>${escapeHtml(type)}</option>`).join("")}</select></label></div>`;
+          return `<div class="energy-assignment-row"><strong>${escapeHtml(target.label)}</strong><div class="energy-region-field"><span>统计区域</span>${renderEnergyAreaPicker({ value: assignment.area, context: "assignment", targetKey: target.key })}</div><label><span>用电类型</span><select data-energy-assignment="usage" data-target="${escapeHtml(target.key)}">${usageTypes.map((type) => `<option value="${escapeHtml(type)}"${assignment.usage === type ? " selected" : ""}>${escapeHtml(type)}</option>`).join("")}</select></label></div>`;
         }).join("")}
       </div>
       <div class="energy-effective-preview"><strong>生效规则</strong><span>点击保存后，从保存时间起按新分类统计；历史数据保持原分类，不自动回算。</span></div>`;
@@ -1356,12 +1387,11 @@
   function openEnergyEdit(id) {
     const item = model.energyStatistics.find((entry) => entry.id === id);
     if (!item) return;
-    const areas = ["1号楼 / 1-6层", "1号楼 / 3-6层", "1号楼 / 公共区", "1号楼 / 电梯", "2号楼 / 公共区", "2号楼 / 202 培训室", "园区 / 室外"];
     const types = model.energyTypes.filter((entry) => entry.enabled).map((entry) => entry.name);
     openModal({
       title: "编辑能源统计分类",
       large: true,
-      body: `<div class="energy-edit-source"><span>来源对象</span><strong>${escapeHtml(item.sourceDevice)} / ${escapeHtml(item.circuit)} / ${escapeHtml(item.phase)}</strong><small>来源对象不可在编辑时替换，如配置错误请停用后重新添加。</small></div><div class="energy-edit-grid"><label><span>统计区域</span><select id="energyEditArea">${areas.map((area) => `<option value="${escapeHtml(area)}"${item.statisticsArea === area ? " selected" : ""}>${escapeHtml(area)}</option>`).join("")}</select></label><label><span>用电类型</span><select id="energyEditUsage">${types.map((type) => `<option value="${escapeHtml(type)}"${item.usageType === type ? " selected" : ""}>${escapeHtml(type)}</option>`).join("")}</select></label></div><div class="energy-effective-preview"><strong>保存后生效</strong><span>新区域和类型从本次保存时间起使用；已有历史数据不会重新归类。</span></div>`,
+      body: `<div class="energy-edit-source"><span>来源对象</span><strong>${escapeHtml(item.sourceDevice)} / ${escapeHtml(item.circuit)} / ${escapeHtml(item.phase)}</strong><small>来源对象不可在编辑时替换，如配置错误请停用后重新添加。</small></div><div class="energy-edit-grid"><div class="energy-region-field"><span>统计区域</span>${renderEnergyAreaPicker({ value: item.statisticsArea, context: "edit" })}<input id="energyEditArea" type="hidden" value="${escapeHtml(item.statisticsArea)}"></div><label><span>用电类型</span><select id="energyEditUsage">${types.map((type) => `<option value="${escapeHtml(type)}"${item.usageType === type ? " selected" : ""}>${escapeHtml(type)}</option>`).join("")}</select></label></div><div class="energy-effective-preview"><strong>保存后生效</strong><span>新区域和类型从本次保存时间起使用；已有历史数据不会重新归类。</span></div>`,
       footer: `<button class="button" type="button" data-action="close-modal">取消</button><button class="button primary" type="button" data-action="save-energy-edit" data-id="${item.id}">${icon("save")}保存</button>`,
     });
   }
@@ -1690,6 +1720,12 @@
   });
 
   document.addEventListener("click", (event) => {
+    const clickedRegionPicker = event.target.closest("[data-energy-region-picker]");
+    document.querySelectorAll("[data-energy-region-picker].open").forEach((picker) => {
+      if (picker === clickedRegionPicker) return;
+      picker.classList.remove("open");
+      picker.querySelector(".energy-region-trigger")?.setAttribute("aria-expanded", "false");
+    });
     const pageButton = event.target.closest("[data-page]");
     if (pageButton) {
       if (pageButton.dataset.page === "navigation" && state.page === "navigation" && state.navigation.editorComponentId) {
@@ -1703,6 +1739,60 @@
     const target = event.target.closest("[data-action]");
     if (!target) return;
     const action = target.dataset.action;
+    if (action === "toggle-energy-region-picker") {
+      const picker = target.closest("[data-energy-region-picker]");
+      if (!picker) return;
+      const shouldOpen = !picker.classList.contains("open");
+      document.querySelectorAll("[data-energy-region-picker].open").forEach((item) => {
+        item.classList.remove("open");
+        item.querySelector(".energy-region-trigger")?.setAttribute("aria-expanded", "false");
+      });
+      picker.classList.toggle("open", shouldOpen);
+      target.setAttribute("aria-expanded", String(shouldOpen));
+      return;
+    }
+    if (action === "toggle-energy-region-node") {
+      const node = target.closest("[data-energy-region-node]");
+      if (!node) return;
+      const expanded = node.classList.toggle("expanded");
+      target.setAttribute("aria-expanded", String(expanded));
+      return;
+    }
+    if (action === "select-energy-region") {
+      const value = target.dataset.regionValue;
+      const context = target.dataset.regionContext;
+      if (!value || !context) return;
+      if (context === "filter") {
+        state.energyClassification.statisticsArea = value;
+        state.energyClassification.abnormalOnly = false;
+        state.energyClassification.page = 1;
+        render();
+        return;
+      }
+      if (context === "assignment") {
+        const draft = state.energyClassification.draft;
+        if (!draft) return;
+        ensureEnergyAssignment(draft, target.dataset.regionTarget).area = value;
+      }
+      if (context === "edit") {
+        const input = document.getElementById("energyEditArea");
+        if (input) input.value = value;
+      }
+      const picker = target.closest("[data-energy-region-picker]");
+      if (picker) {
+        const trigger = picker.querySelector(".energy-region-trigger");
+        const triggerText = trigger?.querySelector("span");
+        if (triggerText) triggerText.textContent = value;
+        if (trigger) {
+          trigger.title = value;
+          trigger.setAttribute("aria-expanded", "false");
+        }
+        picker.querySelectorAll(".energy-region-option.selected, .energy-region-all.selected").forEach((item) => item.classList.remove("selected"));
+        target.classList.add("selected");
+        picker.classList.remove("open");
+      }
+      return;
+    }
     if (action === "open-energy-add") {
       openEnergyAddModal(true);
       return;
