@@ -41,7 +41,7 @@
 python -m http.server 4173 --bind 127.0.0.1 --directory "workspace\demo\REQ-2026-001-004-gvp-navigation-cabinet"
 ```
 
-然后访问：`http://127.0.0.1:4173/?v=20261030-energy-measurement-filters-v10#energy-classification`
+然后访问：`http://127.0.0.1:4173/?v=20261030-energy-meta-copy-v11#energy-classification`
 
 如需关闭后台服务，在 Demo 目录执行：
 
@@ -99,7 +99,8 @@ python -m http.server 4173 --bind 127.0.0.1 --directory "workspace\demo\REQ-2026
 ## 验证记录
 
 - `data.js`、`app.js` 已通过 Node.js 语法检查；`start-demo.ps1`、`stop-demo.ps1` 已通过 PowerShell 语法检查。
-- 本地 HTTP 服务下 `index.html`、CSS 和 JavaScript 均返回 200，构建标识为 `20261030-energy-measurement-filters-v10`。
+- 本地 HTTP 服务下 `index.html`、CSS 和 JavaScript 均返回 200，构建标识为 `20261030-energy-meta-copy-v11`。
+- 已核验筛选区与列表之间不再显示左侧“全部 / 数据异常”汇总文字，右侧分类生效规则说明保留并右对齐。1920×1080 回归截图保存在 `../../../drafts/能源统计分类-原型-20261029/energy-meta-copy-v11.png`。
 - 已核验主列表删除产品名和分类状态，将当前能耗替换为电流、电压、累计能耗三个可升降序排列的字段；设备备注、设备类型、协议、型号、统计模式、功能名称、统计区域、用电类型、数据状态和启用状态筛选均自动生效。1920×1080 回归截图保存在 `../../../drafts/能源统计分类-原型-20261029/energy-measurement-filters-v10.png`。
 - 已核验主列表将原“模式 / 功能”拆分为“统计模式”和“功能名称”两列，分相、整表和回路三种记录均分别显示正确值，且 1920×1080 视口无页面级横向溢出。回归截图保存在 `../../../drafts/能源统计分类-原型-20261029/energy-mode-function-columns-v9.png`。
 - 已核验整表配置完整展示三个设备功能的功能名称和功能类型，不显示功能点复选框，统计区域和用电类型各只有一组共用配置；保存后列表只新增一条整表记录。1920×1080 回归截图保存在 `../../../drafts/能源统计分类-原型-20261029/energy-whole-shared-v8.png`。

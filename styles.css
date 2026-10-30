@@ -5887,7 +5887,7 @@ textarea.form-control {
   display: flex;
   min-height: 38px;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 20px;
   padding: 8px 22px;
   color: #8d92a4;

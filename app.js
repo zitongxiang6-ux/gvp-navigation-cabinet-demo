@@ -1185,10 +1185,6 @@
     const pageCount = Math.max(1, Math.ceil(filtered.length / view.pageSize));
     view.page = Math.min(view.page, pageCount);
     const pageItems = filtered.slice((view.page - 1) * view.pageSize, view.page * view.pageSize);
-    const summary = {
-      all: model.energyStatistics.length,
-      abnormal: model.energyStatistics.filter((item) => item.dataStatus !== "正常").length,
-    };
     const usageTypes = model.energyTypes.filter((item) => item.enabled).map((item) => item.name);
     const rows = pageItems.length
       ? pageItems.map((item) => `
@@ -1236,7 +1232,6 @@
             </div>
           </div>
           <div class="energy-reference-meta">
-            <span>全部 ${summary.all}　数据异常 ${summary.abnormal}</span>
             <span>分类从保存时间起生效，不回算历史；统计项只能停用</span>
           </div>
           <div class="table-wrap device-reference-table-wrap energy-reference-table-wrap">
