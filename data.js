@@ -126,6 +126,44 @@
     { month: "2026-10", total: 12860, lighting: 3858, socket: 7073, hvac: 1929 },
   ];
 
+  const energyTypes = [
+    { id: "lighting", name: "照明", builtIn: true, enabled: true },
+    { id: "socket", name: "插座", builtIn: true, enabled: true },
+    { id: "hvac", name: "空调", builtIn: true, enabled: true },
+    { id: "other", name: "其他", builtIn: true, enabled: true },
+    { id: "power", name: "动力", builtIn: false, enabled: true },
+    { id: "elevator", name: "电梯", builtIn: false, enabled: true },
+  ];
+
+  const energyDevices = [
+    { id: "energy-device-meter-04", remark: "A区总配电表", deviceType: "电表", status: "online", protocol: "Modbus TCP", model: "AMC96L-E4/KC", product: "安科瑞三相电能表", sourceType: "安科瑞电表", deviceName: "安科瑞三相电表 04", navigationArea: "1号楼 / 201 设备间" },
+    { id: "energy-device-meter-06", remark: "B区动力电表", deviceType: "电表", status: "online", protocol: "Modbus TCP", model: "DTSD1352", product: "安科瑞多功能电表", sourceType: "安科瑞电表", deviceName: "安科瑞三相电表 06", navigationArea: "2号楼 / 201 设备间" },
+    { id: "energy-device-breaker-07", remark: "1号楼电梯空开", deviceType: "空开", status: "online", protocol: "MQTT", model: "ZY-AFDD-63", product: "众源智能空开", sourceType: "众源空开", deviceName: "众源网关 A / 智能空开 07", navigationArea: "1号楼 / 201 设备间" },
+    { id: "energy-device-breaker-09", remark: "2号楼空调空开", deviceType: "空开", status: "offline", protocol: "MQTT", model: "ZY-MCB-100", product: "众源智能空开", sourceType: "众源空开", deviceName: "众源网关 B / 智能空开 09", navigationArea: "2号楼 / 201 设备间" },
+  ];
+
+  const energyDeviceFunctions = [
+    { id: "meter-04-a", deviceId: "energy-device-meter-04", name: "A相有功电能", functionType: "电能", page: "1号楼能源管理", deviceRemark: "A区总配电表", deviceName: "安科瑞三相电表 04", floorNode: "1号楼 → 201 设备间", phase: "A相", circuit: "A相回路" },
+    { id: "meter-04-b", deviceId: "energy-device-meter-04", name: "B相有功电能", functionType: "电能", page: "1号楼能源管理", deviceRemark: "A区总配电表", deviceName: "安科瑞三相电表 04", floorNode: "1号楼 → 201 设备间", phase: "B相", circuit: "B相回路" },
+    { id: "meter-04-c", deviceId: "energy-device-meter-04", name: "C相有功电能", functionType: "电能", page: "1号楼能源管理", deviceRemark: "A区总配电表", deviceName: "安科瑞三相电表 04", floorNode: "1号楼 → 201 设备间", phase: "C相", circuit: "C相回路" },
+    { id: "meter-06-a", deviceId: "energy-device-meter-06", name: "A相有功电能", functionType: "电能", page: "2号楼能源管理", deviceRemark: "B区动力电表", deviceName: "安科瑞三相电表 06", floorNode: "2号楼 → 201 设备间", phase: "A相", circuit: "A相回路" },
+    { id: "meter-06-b", deviceId: "energy-device-meter-06", name: "B相有功电能", functionType: "电能", page: "2号楼能源管理", deviceRemark: "B区动力电表", deviceName: "安科瑞三相电表 06", floorNode: "2号楼 → 201 设备间", phase: "B相", circuit: "B相回路" },
+    { id: "meter-06-c", deviceId: "energy-device-meter-06", name: "C相有功电能", functionType: "电能", page: "2号楼能源管理", deviceRemark: "B区动力电表", deviceName: "安科瑞三相电表 06", floorNode: "2号楼 → 201 设备间", phase: "C相", circuit: "C相回路" },
+    { id: "breaker-07-energy", deviceId: "energy-device-breaker-07", name: "正向有功电能", functionType: "电能", page: "1号楼能源管理", deviceRemark: "1号楼电梯空开", deviceName: "众源智能空开 07", floorNode: "1号楼 → 201 设备间", phase: "—", circuit: "空开回路 07" },
+    { id: "breaker-09-energy", deviceId: "energy-device-breaker-09", name: "正向有功电能", functionType: "电能", page: "2号楼能源管理", deviceRemark: "2号楼空调空开", deviceName: "众源智能空开 09", floorNode: "2号楼 → 201 设备间", phase: "—", circuit: "空开回路 09" },
+  ];
+
+  const energyStatistics = [
+    { id: "energy-001", name: "1号楼低区照明 A相", sourceType: "安科瑞电表", sourceDevice: "安科瑞多回路电表 01", circuit: "回路 01", mode: "分相", phase: "A相", navigationArea: "1号楼 / 201 设备间", statisticsArea: "1号楼 / 1-6层", usageType: "照明", currentEnergy: 1248, unit: "kWh", classificationStatus: "已分类", dataStatus: "正常", enabled: true, effectiveAt: "2026-10-29 09:20" },
+    { id: "energy-002", name: "1号楼办公插座 B相", sourceType: "安科瑞电表", sourceDevice: "安科瑞多回路电表 01", circuit: "回路 01", mode: "分相", phase: "B相", navigationArea: "1号楼 / 201 设备间", statisticsArea: "1号楼 / 3-6层", usageType: "插座", currentEnergy: 986, unit: "kWh", classificationStatus: "已分类", dataStatus: "正常", enabled: true, effectiveAt: "2026-10-29 09:20" },
+    { id: "energy-003", name: "1号楼公共空调 C相", sourceType: "安科瑞电表", sourceDevice: "安科瑞多回路电表 01", circuit: "回路 01", mode: "分相", phase: "C相", navigationArea: "1号楼 / 201 设备间", statisticsArea: "1号楼 / 公共区", usageType: "空调", currentEnergy: 744, unit: "kWh", classificationStatus: "部分分类", dataStatus: "正常", enabled: true, effectiveAt: "2026-10-29 09:20" },
+    { id: "energy-004", name: "2号楼公共动力总表", sourceType: "安科瑞电表", sourceDevice: "安科瑞三相电表 02", circuit: "回路 03", mode: "整表", phase: "整表", navigationArea: "2号楼 / 201 设备间", statisticsArea: "2号楼 / 公共区", usageType: "动力", currentEnergy: 2216, unit: "kWh", classificationStatus: "已分类", dataStatus: "正常", enabled: true, effectiveAt: "2026-10-28 16:40" },
+    { id: "energy-005", name: "1号楼电梯回路", sourceType: "众源空开", sourceDevice: "众源网关 A / 智能空开 05", circuit: "空开回路 05", mode: "回路", phase: "—", navigationArea: "1号楼 / 201 设备间", statisticsArea: "1号楼 / 电梯", usageType: "电梯", currentEnergy: 612, unit: "kWh", classificationStatus: "已分类", dataStatus: "正常", enabled: true, effectiveAt: "2026-10-27 11:08" },
+    { id: "energy-006", name: "2号楼会议室空调", sourceType: "众源空开", sourceDevice: "众源网关 B / 智能空开 12", circuit: "空开回路 12", mode: "回路", phase: "—", navigationArea: "2号楼 / 201 设备间", statisticsArea: "2号楼 / 202 培训室", usageType: "空调", currentEnergy: 0, unit: "kWh", classificationStatus: "已分类", dataStatus: "数据中断", enabled: true, effectiveAt: "2026-10-26 14:35" },
+    { id: "energy-007", name: "1号楼备用回路", sourceType: "安科瑞电表", sourceDevice: "安科瑞多回路电表 03", circuit: "回路 08", mode: "整表", phase: "整表", navigationArea: "1号楼 / 201 设备间", statisticsArea: "—", usageType: "—", currentEnergy: 0, unit: "kWh", classificationStatus: "未分类", dataStatus: "正常", enabled: false, effectiveAt: "—" },
+    { id: "energy-008", name: "室外景观回路", sourceType: "众源空开", sourceDevice: "众源网关 C / 智能空开 03", circuit: "空开回路 03", mode: "回路", phase: "—", navigationArea: "园区 / 室外", statisticsArea: "园区 / 室外", usageType: "照明", currentEnergy: 0, unit: "kWh", classificationStatus: "已分类", dataStatus: "来源失效", enabled: false, effectiveAt: "2026-10-24 10:02" },
+  ];
+
   function clone(value) {
     return JSON.parse(JSON.stringify(value));
   }
@@ -139,6 +177,10 @@
         devices: clone(devices),
         history: clone(history),
         energyRecords: clone(energyRecords),
+        energyTypes: clone(energyTypes),
+        energyDevices: clone(energyDevices),
+        energyDeviceFunctions: clone(energyDeviceFunctions),
+        energyStatistics: clone(energyStatistics),
       };
     },
   };

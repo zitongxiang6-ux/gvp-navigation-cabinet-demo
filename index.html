@@ -8,14 +8,14 @@
     <meta http-equiv="Expires" content="0" />
     <meta
       name="description"
-      content="GVP 首页用电分析、导航组件视图、独立配电箱设备查询、设备管理楼层节点展示与历史离线定位交互 Demo"
+      content="GVP 首页用电分析、能源统计分类、导航组件视图、配电箱设备查询、设备管理与历史记录交互 Demo"
     />
     <meta name="gvp-demo-id" content="REQ-2026-001-004-navigation-cabinet" />
-    <meta name="gvp-demo-build" content="20261021-energy-overview-v2" />
-    <title>GVP 首页用电分析 Demo</title>
-    <link rel="stylesheet" href="./styles.css?v=20261021-energy-overview-v2" />
-    <script src="./data.js?v=20261021-energy-overview-v2" defer></script>
-    <script src="./app.js?v=20261021-energy-overview-v2" defer></script>
+    <meta name="gvp-demo-build" content="20261030-energy-two-step-v4" />
+    <title>GVP V3.2.0 评审 Demo</title>
+    <link rel="stylesheet" href="./styles.css?v=20261030-energy-two-step-v4" />
+    <script src="./data.js?v=20261030-energy-two-step-v4" defer></script>
+    <script src="./app.js?v=20261030-energy-two-step-v4" defer></script>
   </head>
   <body>
     <svg class="svg-sprite" aria-hidden="true">
@@ -123,6 +123,9 @@
             </button>
             <button class="side-nav-item" type="button" data-page="devices" aria-label="设备管理">
               <svg><use href="#i-device"></use></svg>
+            </button>
+            <button class="side-nav-item" type="button" data-page="energy-classification" aria-label="能源统计分类" title="能源统计分类">
+              <svg><use href="#i-manage"></use></svg>
             </button>
           </nav>
         </div>
