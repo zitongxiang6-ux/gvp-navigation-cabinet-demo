@@ -5860,6 +5860,7 @@ textarea.form-control {
 
 .energy-reference-toolbar {
   min-height: 72px;
+  align-items: flex-start;
 }
 
 .energy-reference-filters {
@@ -5869,7 +5870,7 @@ textarea.form-control {
 }
 
 .energy-reference-filters .reference-search {
-  width: 190px;
+  width: 142px;
 }
 
 .energy-reference-filters select {
@@ -5879,6 +5880,7 @@ textarea.form-control {
 
 .energy-reference-actions {
   flex: none;
+  padding-top: 1px;
 }
 
 .energy-reference-meta {
@@ -5894,7 +5896,11 @@ textarea.form-control {
 }
 
 .energy-reference-table {
-  min-width: 1685px;
+  min-width: 1580px;
+}
+
+.energy-reference-table .sort-button {
+  white-space: nowrap;
 }
 
 .energy-reference-table-wrap .data-table th,

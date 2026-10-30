@@ -5,7 +5,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $demoRoot = (Resolve-Path -LiteralPath $PSScriptRoot).Path
-$demoBuild = '20261030-energy-mode-function-columns-v9'
+$demoBuild = '20261030-energy-measurement-filters-v10'
 $demoUrl = "http://127.0.0.1:$Port/?v=$demoBuild#energy-classification"
 
 function Test-DemoAvailable {
