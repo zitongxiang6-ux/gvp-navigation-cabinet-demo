@@ -1254,12 +1254,13 @@
   }
 
   function energyDraftTargets(draft) {
-    const selectedFunctions = energyDraftFunctions(draft).filter((item) => draft.selectedFunctionIds.includes(item.id));
+    const allFunctions = energyDraftFunctions(draft);
+    const selectedFunctions = allFunctions.filter((item) => draft.selectedFunctionIds.includes(item.id));
     if (draft.deviceType === "空开") {
       const item = selectedFunctions[0];
       return item ? [{ key: item.id, functionName: item.name, functionType: item.functionType, function: item }] : [];
     }
-    if (draft.mode === "整表") return [{ key: "整表", functionName: "全部设备功能", functionType: `${selectedFunctions.length} 个功能点`, function: null }];
+    if (draft.mode === "整表") return [{ key: "整表", functionName: "全部设备功能", functionType: `${allFunctions.length} 个功能点`, function: null }];
     return selectedFunctions.map((item) => ({ key: item.id, functionName: item.name, functionType: item.functionType, function: item }));
   }
 
@@ -1295,13 +1296,19 @@
     const assignmentRows = isMeter && draft.mode === "分相"
       ? energyDraftFunctions(draft).map((item) => ({ key: item.id, functionName: item.name, functionType: item.functionType, function: item, selected: draft.selectedFunctionIds.includes(item.id) }))
       : targets.map((target) => ({ ...target, selected: true }));
-    return `
-      <div class="energy-wizard-copy"><h3>${isMeter ? "设置统计方式、区域与用电类型" : "设置统计区域与用电类型"}</h3><p>${isMeter ? "电表可选择整表或分相统计；分相时直接使用设备返回的功能名称和功能类型，不再使用固定相位名称。" : "空开不需要选择统计方式，直接按设备功能点设置统计区域和用电类型。"}</p></div>
-      <div class="energy-object-preview"><div><strong>${escapeHtml(device?.remark ?? "—")}</strong><small>${escapeHtml(draft.sourceDevice)} · ${escapeHtml(device?.product ?? "—")}</small></div></div>
-      ${isMeter ? `<div class="energy-mode-switch">
-        <button type="button" class="${draft.mode === "整表" ? "active" : ""}" data-action="energy-select-mode" data-mode="整表"><strong>整表统计</strong><small>全部设备功能共用同一统计区域和用电类型，保存后生成一行</small></button>
-        <button type="button" class="${draft.mode === "分相" ? "active" : ""}" data-action="energy-select-mode" data-mode="分相"><strong>分相统计</strong><small>勾选参与统计的设备功能点，分别设置区域和用电类型，按功能点生成多行</small></button>
-      </div>` : ""}
+    const wholeMeterFunctions = isMeter && draft.mode === "整表" ? energyDraftFunctions(draft) : [];
+    const wholeMeterAssignment = wholeMeterFunctions.length ? ensureEnergyAssignment(draft, "整表") : null;
+    const assignmentMarkup = wholeMeterFunctions.length ? `
+      <div class="energy-assignment-list energy-whole-assignment-list">
+        <div class="energy-assignment-header whole"><span>功能名称</span><span>功能类型</span><span>统计区域</span><span>用电类型</span></div>
+        <div class="energy-whole-assignment">
+          <div class="energy-whole-function-list">
+            ${wholeMeterFunctions.map((item) => `<div class="energy-whole-function-row"><strong title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</strong><span>${escapeHtml(item.functionType)}</span></div>`).join("")}
+          </div>
+          <div class="energy-region-field energy-whole-shared-field">${renderEnergyAreaPicker({ value: wholeMeterAssignment.area, context: "assignment", targetKey: "整表" })}</div>
+          <label class="energy-whole-shared-field"><select aria-label="整表用电类型" data-energy-assignment="usage" data-target="整表">${usageTypes.map((type) => `<option value="${escapeHtml(type)}"${wholeMeterAssignment.usage === type ? " selected" : ""}>${escapeHtml(type)}</option>`).join("")}</select></label>
+        </div>
+      </div>` : `
       <div class="energy-assignment-list">
         <div class="energy-assignment-header"><span></span><span>功能名称</span><span>功能类型</span><span>统计区域</span><span>用电类型</span></div>
         ${assignmentRows.map((target, index) => {
@@ -1311,7 +1318,15 @@
           const usageCell = target.selected ? `<select aria-label="${escapeHtml(target.functionName)}用电类型" data-energy-assignment="usage" data-target="${escapeHtml(target.key)}">${usageTypes.map((type) => `<option value="${escapeHtml(type)}"${assignment.usage === type ? " selected" : ""}>${escapeHtml(type)}</option>`).join("")}</select>` : `<span class="energy-assignment-unselected">未选择</span>`;
           return `<div class="energy-assignment-row${target.selected ? "" : " unselected"}"><div class="energy-assignment-checkbox">${selector}</div><div class="energy-assignment-function" title="${escapeHtml(target.functionName)}"><strong>${escapeHtml(target.functionName)}</strong></div><div class="energy-assignment-function-type">${escapeHtml(target.functionType)}</div><div class="energy-region-field">${areaCell}</div><label>${usageCell}</label></div>`;
         }).join("")}
-      </div>
+      </div>`;
+    return `
+      <div class="energy-wizard-copy"><h3>${isMeter ? "设置统计方式、区域与用电类型" : "设置统计区域与用电类型"}</h3><p>${isMeter ? "电表可选择整表或分相统计；分相时直接使用设备返回的功能名称和功能类型，不再使用固定相位名称。" : "空开不需要选择统计方式，直接按设备功能点设置统计区域和用电类型。"}</p></div>
+      <div class="energy-object-preview"><div><strong>${escapeHtml(device?.remark ?? "—")}</strong><small>${escapeHtml(draft.sourceDevice)} · ${escapeHtml(device?.product ?? "—")}</small></div></div>
+      ${isMeter ? `<div class="energy-mode-switch">
+        <button type="button" class="${draft.mode === "整表" ? "active" : ""}" data-action="energy-select-mode" data-mode="整表"><strong>整表统计</strong><small>全部设备功能共用同一统计区域和用电类型，保存后生成一行</small></button>
+        <button type="button" class="${draft.mode === "分相" ? "active" : ""}" data-action="energy-select-mode" data-mode="分相"><strong>分相统计</strong><small>勾选参与统计的设备功能点，分别设置区域和用电类型，按功能点生成多行</small></button>
+      </div>` : ""}
+      ${assignmentMarkup}
       <div class="energy-effective-preview"><strong>生效规则</strong><span>点击保存后，从保存时间起按新分类统计；历史数据保持原分类，不自动回算。</span></div>`;
   }
 

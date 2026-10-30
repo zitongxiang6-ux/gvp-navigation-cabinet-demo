@@ -5,7 +5,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $demoRoot = (Resolve-Path -LiteralPath $PSScriptRoot).Path
-$demoBuild = '20261030-energy-function-points-v7'
+$demoBuild = '20261030-energy-whole-shared-v8'
 $demoUrl = "http://127.0.0.1:$Port/?v=$demoBuild#energy-classification"
 
 function Test-DemoAvailable {

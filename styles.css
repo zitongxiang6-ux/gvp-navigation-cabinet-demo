@@ -4111,6 +4111,7 @@ textarea.form-control {
 .energy-filter-grid input,
 .energy-edit-grid select,
 .energy-assignment-row select,
+.energy-whole-shared-field select,
 .energy-type-toolbar input {
   width: 100%;
   height: 36px;
@@ -4128,6 +4129,7 @@ textarea.form-control {
 .energy-filter-grid input:focus,
 .energy-edit-grid select:focus,
 .energy-assignment-row select:focus,
+.energy-whole-shared-field select:focus,
 .energy-type-toolbar input:focus {
   border-color: #8a55eb;
   box-shadow: 0 0 0 2px rgb(138 85 235 / 10%);
@@ -4595,6 +4597,10 @@ textarea.form-control {
   font-size: 11px;
 }
 
+.energy-assignment-header.whole {
+  grid-template-columns: minmax(170px, 1.2fr) minmax(90px, .65fr) minmax(210px, 1.5fr) minmax(210px, 1.5fr);
+}
+
 .energy-assignment-row {
   align-items: end;
   padding: 12px 14px;
@@ -4646,6 +4652,51 @@ textarea.form-control {
   align-items: center;
   color: #a0a4b2;
   font-size: 12px;
+}
+
+.energy-whole-assignment {
+  display: grid;
+  grid-template-columns: minmax(272px, 1.85fr) minmax(210px, 1.5fr) minmax(210px, 1.5fr);
+  align-items: stretch;
+  gap: 12px;
+  padding: 0 14px;
+  border: 1px solid #e2e3ea;
+  border-radius: 5px;
+  background: #fcfcfe;
+}
+
+.energy-whole-function-list {
+  display: grid;
+}
+
+.energy-whole-function-row {
+  display: grid;
+  grid-template-columns: minmax(170px, 1.2fr) minmax(90px, .65fr);
+  min-height: 52px;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid #eceef4;
+}
+
+.energy-whole-function-row:last-child {
+  border-bottom: 0;
+}
+
+.energy-whole-function-row strong {
+  overflow: hidden;
+  color: #4d536a;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.energy-whole-function-row span {
+  color: #73798c;
+  font-size: 12px;
+}
+
+.energy-whole-shared-field {
+  align-self: center;
 }
 
 .energy-assignment-row label,
@@ -6095,6 +6146,7 @@ textarea.form-control {
 }
 
 .energy-assignment-row select,
+.energy-whole-shared-field select,
 .energy-edit-grid select,
 .energy-type-toolbar input {
   height: 36px;
