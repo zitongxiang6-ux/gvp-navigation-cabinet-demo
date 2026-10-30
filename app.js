@@ -1162,7 +1162,8 @@
             <td>${escapeHtml(item.protocol)}</td>
             <td title="${escapeHtml(item.deviceModel)}">${escapeHtml(item.deviceModel)}</td>
             <td title="${escapeHtml(item.productName)}">${escapeHtml(item.productName)}</td>
-            <td title="${escapeHtml(item.functionName)}">${escapeHtml(item.mode)} / ${escapeHtml(item.functionName)}</td>
+            <td>${escapeHtml(item.mode)}</td>
+            <td title="${escapeHtml(item.functionName)}">${escapeHtml(item.functionName)}</td>
             <td title="${escapeHtml(item.statisticsArea)}">${escapeHtml(item.statisticsArea)}</td>
             <td>${escapeHtml(item.usageType)}</td>
             <td>${item.currentEnergy > 0 ? `${formatEnergy(item.currentEnergy)} ${escapeHtml(item.unit)}` : "--"}</td>
@@ -1175,7 +1176,7 @@
               <button class="action-link${item.enabled ? " danger" : ""}" type="button" data-action="toggle-energy-item" data-id="${item.id}">${item.enabled ? "停用" : "启用"}</button>
             </td>
           </tr>`).join("")
-      : `<tr><td colspan="13"><div class="empty-state"><div><strong>没有匹配的数据</strong>请调整筛选条件</div></div></td></tr>`;
+      : `<tr><td colspan="14"><div class="empty-state"><div><strong>没有匹配的数据</strong>请调整筛选条件</div></div></td></tr>`;
 
     return `
       <section class="page device-reference-page energy-reference-page">
@@ -1201,9 +1202,9 @@
           <div class="table-wrap device-reference-table-wrap energy-reference-table-wrap">
             <table class="data-table energy-reference-table">
               <colgroup>
-                <col style="width:150px"><col style="width:85px"><col style="width:105px"><col style="width:145px"><col style="width:185px"><col style="width:110px"><col style="width:160px"><col style="width:85px"><col style="width:110px"><col style="width:90px"><col style="width:90px"><col style="width:80px"><col style="width:170px">
+                <col style="width:150px"><col style="width:85px"><col style="width:105px"><col style="width:145px"><col style="width:185px"><col style="width:80px"><col style="width:130px"><col style="width:160px"><col style="width:85px"><col style="width:110px"><col style="width:90px"><col style="width:90px"><col style="width:80px"><col style="width:170px">
               </colgroup>
-              <thead><tr><th>设备备注</th><th>设备类型</th><th>协议</th><th>型号</th><th>产品名</th><th>模式 / 功能</th><th>统计区域</th><th>用电类型</th><th>当前能耗</th><th>分类状态</th><th>数据状态</th><th>启用状态</th><th>操作</th></tr></thead>
+              <thead><tr><th>设备备注</th><th>设备类型</th><th>协议</th><th>型号</th><th>产品名</th><th>统计模式</th><th>功能名称</th><th>统计区域</th><th>用电类型</th><th>当前能耗</th><th>分类状态</th><th>数据状态</th><th>启用状态</th><th>操作</th></tr></thead>
               <tbody>${rows}</tbody>
             </table>
           </div>
