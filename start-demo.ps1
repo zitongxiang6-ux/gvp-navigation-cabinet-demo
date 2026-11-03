@@ -5,8 +5,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $demoRoot = (Resolve-Path -LiteralPath $PSScriptRoot).Path
-$demoBuild = '20260909-cabinet-filter-trim'
-$demoUrl = "http://127.0.0.1:$Port/?v=$demoBuild#cabinet-functions"
+$demoBuild = '20261103-energy-detail-no-change-v27'
+$demoUrl = "http://127.0.0.1:$Port/?v=$demoBuild#overview"
 
 function Test-DemoAvailable {
     param([string]$Url)

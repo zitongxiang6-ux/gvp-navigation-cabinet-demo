@@ -14,6 +14,10 @@
 
   const state = {
     page: getPageFromHash(),
+    overview: {
+      selectedMonth: "2026-10",
+      trendRange: "12m",
+    },
     navigation: {
       selectedLocation: "room-a102",
       editorComponentId: null,
@@ -43,10 +47,31 @@
       page: 1,
       pageSize: 10,
     },
+    energyClassification: {
+      deviceRemark: "",
+      deviceType: "all",
+      protocol: "all",
+      deviceModel: "",
+      mode: "all",
+      functionName: "",
+      usageType: "all",
+      statisticsArea: "all",
+      dataStatus: "all",
+      abnormalOnly: false,
+      sortKey: null,
+      sortDirection: "asc",
+      page: 1,
+      pageSize: 10,
+      addStep: 1,
+      draft: null,
+      editDraft: null,
+      detailRange: "30d",
+    },
   };
 
   let cabinetFunctionFilterTimer = null;
   let deviceFilterTimer = null;
+  let energyFilterTimer = null;
 
   const pageNames = {
     overview: "首页",
@@ -54,6 +79,7 @@
     "cabinet-functions": "配电箱设备查询",
     history: "历史记录",
     devices: "设备管理",
+    "energy-classification": "能源统计分类",
   };
 
   function getPageFromHash() {
@@ -62,8 +88,8 @@
       window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}#cabinet-functions`);
       return "cabinet-functions";
     }
-    const validPages = ["overview", "navigation", "cabinet-functions", "history", "devices"];
-    return validPages.includes(value) ? value : "cabinet-functions";
+    const validPages = ["overview", "navigation", "cabinet-functions", "history", "devices", "energy-classification"];
+    return validPages.includes(value) ? value : "overview";
   }
 
   function escapeHtml(value) {
@@ -263,6 +289,7 @@
   function render() {
     state.page = getPageFromHash();
     if (state.page !== "navigation") state.navigation.editorComponentId = null;
+    document.body.classList.toggle("overview-mode", state.page === "overview");
     pageTitle.textContent = pageNames[state.page] ?? "GVP";
     document.querySelectorAll(".side-nav-item[data-page]").forEach((item) => {
       const target = item.dataset.page;
@@ -270,6 +297,9 @@
     });
 
     switch (state.page) {
+      case "overview":
+        app.innerHTML = renderOverviewPage();
+        break;
       case "navigation":
         app.innerHTML = state.navigation.editorComponentId ? renderComponentEditorPage() : renderNavigationPage();
         break;
@@ -282,6 +312,9 @@
       case "history":
         app.innerHTML = renderHistoryPage();
         break;
+      case "energy-classification":
+        app.innerHTML = renderEnergyClassificationPage();
+        break;
       default:
         app.innerHTML = renderPlaceholderPage(state.page);
         break;
@@ -290,6 +323,268 @@
       input.indeterminate = true;
     });
     app.focus({ preventScroll: true });
+  }
+
+  function formatEnergy(value) {
+    return new Intl.NumberFormat("zh-CN", { maximumFractionDigits: 0 }).format(value);
+  }
+
+  function formatRate(value) {
+    if (!Number.isFinite(value)) return "--";
+    return `${value >= 0 ? "+" : ""}${value.toFixed(2)}%`;
+  }
+
+  function percentChange(current, previous) {
+    return previous ? ((current - previous) / previous) * 100 : Number.NaN;
+  }
+
+  function monthDisplay(month) {
+    const [year, value] = month.split("-");
+    return `${year}.${value}`;
+  }
+
+  const overviewTrendRangeLabels = { "7d": "近7天", "30d": "近30天", "12m": "近12月" };
+
+  function overviewDailyTrend(monthRecord) {
+    const [year, month] = monthRecord.month.split("-").map(Number);
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const weights = Array.from({ length: daysInMonth }, (_, index) => {
+      const weekdayFactor = [0.86, 0.93, 1.02, 1.08, 1.04, 1.12, 0.95][index % 7];
+      return weekdayFactor + Math.sin((index + 1) * 1.17) * 0.045;
+    });
+    const totalWeight = weights.reduce((sum, value) => sum + value, 0);
+    const lightingRatio = monthRecord.lighting / monthRecord.total;
+    const socketRatio = monthRecord.socket / monthRecord.total;
+    return weights.map((weight, index) => {
+      const total = (monthRecord.total * weight) / totalWeight;
+      const day = index + 1;
+      return {
+        period: `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
+        label: `${String(month).padStart(2, "0")}/${String(day).padStart(2, "0")}`,
+        total,
+        lighting: total * lightingRatio,
+        socket: total * socketRatio,
+        hvac: total * (1 - lightingRatio - socketRatio),
+      };
+    });
+  }
+
+  function overviewEnergyContext() {
+    const records = model.energyRecords;
+    const selectedIndex = Math.max(0, records.findIndex((record) => record.month === state.overview.selectedMonth));
+    const current = records[selectedIndex];
+    const previous = records[selectedIndex - 1];
+    const priorYear = records[selectedIndex - 12];
+    const year = current.month.slice(0, 4);
+    const annualRecords = records.filter((record) => record.month.startsWith(`${year}-`) && record.month <= current.month);
+    const annual = annualRecords.reduce(
+      (totals, record) => ({
+        total: totals.total + record.total,
+        lighting: totals.lighting + record.lighting,
+        socket: totals.socket + record.socket,
+        hvac: totals.hvac + record.hvac,
+      }),
+      { total: 0, lighting: 0, socket: 0, hvac: 0 },
+    );
+    const monthlyTrend = records.slice(Math.max(0, selectedIndex - 11), selectedIndex + 1).map((record) => ({
+      ...record,
+      period: record.month,
+      label: monthDisplay(record.month),
+    }));
+    const dailyTrend = overviewDailyTrend(current);
+    const trendRange = state.overview.trendRange ?? "12m";
+    const trend = trendRange === "7d" ? dailyTrend.slice(-7) : trendRange === "30d" ? dailyTrend.slice(-30) : monthlyTrend;
+    return {
+      current,
+      annual,
+      trend,
+      trendRange,
+      monthOnMonth: percentChange(current.total, previous?.total),
+      yearOnYear: percentChange(current.total, priorYear?.total),
+    };
+  }
+
+  function overviewSummaryRows(values) {
+    return `
+      <div class="overview-energy-total"><strong>${formatEnergy(values.total)}</strong><span>kWh</span></div>
+      <dl class="overview-energy-breakdown">
+        <div><dt><i class="energy-key lighting"></i>照明用电量</dt><dd>${formatEnergy(values.lighting)} <span>kWh</span></dd></div>
+        <div><dt><i class="energy-key socket"></i>插排用电量</dt><dd>${formatEnergy(values.socket)} <span>kWh</span></dd></div>
+        <div><dt><i class="energy-key hvac"></i>空调用电量</dt><dd>${formatEnergy(values.hvac)} <span>kWh</span></dd></div>
+      </dl>`;
+  }
+
+  function energyTrendChart(records, range) {
+    const width = 1120;
+    const height = 310;
+    const plot = { left: 66, right: 24, top: 22, bottom: 52 };
+    const plotWidth = width - plot.left - plot.right;
+    const plotHeight = height - plot.top - plot.bottom;
+    const rawMaxValue = Math.max(...records.map((record) => record.total));
+    const gridStep = rawMaxValue <= 1000 ? Math.max(50, Math.ceil(rawMaxValue / 200) * 50) : Math.max(1000, Math.ceil(rawMaxValue / 4000) * 1000);
+    const maxValue = gridStep * 4;
+    const x = (index) => plot.left + (records.length <= 1 ? 0 : (index * plotWidth) / (records.length - 1));
+    const y = (value) => plot.top + plotHeight - (value / maxValue) * plotHeight;
+    const dimensions = [
+      ["total", "总用电量", "#2f3448"],
+      ["lighting", "照明用电量", "#2f92f3"],
+      ["hvac", "空调用电量", "#f06b72"],
+      ["socket", "插排用电量", "#78b73c"],
+    ];
+    const grid = Array.from({ length: 5 }, (_, index) => {
+      const value = (maxValue * (4 - index)) / 4;
+      const pointY = plot.top + (index * plotHeight) / 4;
+      return `<g><line x1="${plot.left}" y1="${pointY}" x2="${width - plot.right}" y2="${pointY}" class="energy-grid-line"/><text x="${plot.left - 14}" y="${pointY + 4}" text-anchor="end" class="energy-axis-label">${formatEnergy(value)}</text></g>`;
+    }).join("");
+    const lines = dimensions
+      .map(([key, label, color]) => {
+        const points = records.map((record, index) => `${x(index).toFixed(1)},${y(record[key]).toFixed(1)}`).join(" ");
+        const markers = records
+          .map((record, index) => `<circle cx="${x(index).toFixed(1)}" cy="${y(record[key]).toFixed(1)}" r="3.2" fill="${color}" class="energy-line-point"><title>${record.label} ${label}：${formatEnergy(record[key])} kWh</title></circle>`)
+          .join("");
+        return `<polyline points="${points}" fill="none" stroke="${color}" stroke-width="${key === "total" ? 2.8 : 2.25}" stroke-linecap="round" stroke-linejoin="round" class="energy-series-line"/>${markers}`;
+      })
+      .join("");
+    const currentRecord = records.at(-1);
+    const currentIndex = records.length - 1;
+    const isMonthly = range === "12m";
+    const allRecordIndex = isMonthly ? model.energyRecords.findIndex((record) => record.month === currentRecord.month) : -1;
+    const previousRecord = isMonthly ? model.energyRecords[allRecordIndex - 1] : records.at(-2);
+    const priorYearRecord = isMonthly ? model.energyRecords[allRecordIndex - 12] : null;
+    const currentMom = formatRate(percentChange(currentRecord.total, previousRecord?.total));
+    const currentYoy = isMonthly ? formatRate(percentChange(currentRecord.total, priorYearRecord?.total)) : null;
+    const currentPointX = x(currentIndex);
+    const currentPointY = y(currentRecord.total);
+    const calloutWidth = 162;
+    const calloutHeight = isMonthly ? 82 : 64;
+    const calloutX = Math.max(plot.left + 8, currentPointX - calloutWidth - 14);
+    const calloutY = Math.max(plot.top + 4, Math.min(currentPointY - calloutHeight / 2, height - plot.bottom - calloutHeight - 4));
+    const arrowY = currentPointY - calloutY;
+    const currentCallout = isMonthly ? `
+      <g class="energy-current-callout" transform="translate(${calloutX.toFixed(1)} ${calloutY.toFixed(1)})" role="note" aria-label="当月 ${currentRecord.label}，用电量 ${formatEnergy(currentRecord.total)} 千瓦时，环比 ${currentMom}，同比 ${currentYoy}">
+        <rect width="${calloutWidth}" height="${calloutHeight}" rx="6"/>
+        <path class="energy-current-callout-arrow" d="M ${calloutWidth} ${(arrowY - 6).toFixed(1)} L ${calloutWidth + 12} ${arrowY.toFixed(1)} L ${calloutWidth} ${(arrowY + 6).toFixed(1)} Z"/>
+        <text x="12" y="18" class="energy-current-tooltip-month">${currentRecord.label}</text>
+        <text x="12" y="39" class="energy-current-tooltip-label">当月用电量</text><text x="150" y="39" text-anchor="end" class="energy-current-tooltip-value">${formatEnergy(currentRecord.total)} kWh</text>
+        <text x="12" y="57" class="energy-current-tooltip-label">环比增速</text><text x="150" y="57" text-anchor="end" class="energy-current-tooltip-value">${currentMom}</text>
+        <text x="12" y="75" class="energy-current-tooltip-label">同比增速</text><text x="150" y="75" text-anchor="end" class="energy-current-tooltip-value">${currentYoy}</text>
+      </g>` : `
+      <g class="energy-current-callout" transform="translate(${calloutX.toFixed(1)} ${calloutY.toFixed(1)})" role="note" aria-label="${currentRecord.label}，当日用电量 ${formatEnergy(currentRecord.total)} 千瓦时，较前一日 ${currentMom}">
+        <rect width="${calloutWidth}" height="${calloutHeight}" rx="6"/>
+        <path class="energy-current-callout-arrow" d="M ${calloutWidth} ${(arrowY - 6).toFixed(1)} L ${calloutWidth + 12} ${arrowY.toFixed(1)} L ${calloutWidth} ${(arrowY + 6).toFixed(1)} Z"/>
+        <text x="12" y="18" class="energy-current-tooltip-month">${currentRecord.label}</text>
+        <text x="12" y="39" class="energy-current-tooltip-label">当日用电量</text><text x="150" y="39" text-anchor="end" class="energy-current-tooltip-value">${formatEnergy(currentRecord.total)} kWh</text>
+        <text x="12" y="57" class="energy-current-tooltip-label">较前一日</text><text x="150" y="57" text-anchor="end" class="energy-current-tooltip-value">${currentMom}</text>
+      </g>`;
+    const currentPoint = `<circle cx="${currentPointX.toFixed(1)}" cy="${currentPointY.toFixed(1)}" r="5.5" class="energy-current-point-ring"/>`;
+    const labelStep = records.length > 12 ? Math.ceil(records.length / 7) : 1;
+    const xLabels = records
+      .map((record, index) => (index % labelStep === 0 || index === records.length - 1 ? `<text x="${x(index).toFixed(1)}" y="${height - 19}" text-anchor="middle" class="energy-axis-label">${record.label}</text>` : ""))
+      .join("");
+    return `
+      <svg class="energy-trend-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="${overviewTrendRangeLabels[range]}用电量变化趋势折线图" data-overview-trend-range="${range}" data-record-count="${records.length}">
+        ${grid}
+        <line x1="${plot.left}" y1="${plot.top}" x2="${plot.left}" y2="${height - plot.bottom}" class="energy-axis-line"/>
+        <line x1="${plot.left}" y1="${height - plot.bottom}" x2="${width - plot.right}" y2="${height - plot.bottom}" class="energy-axis-line"/>
+        ${lines}
+        ${currentCallout}
+        ${currentPoint}
+        ${xLabels}
+        <text x="14" y="18" class="energy-axis-title">用电量（kWh）</text>
+      </svg>`;
+  }
+
+  function renderWelcomeIllustration() {
+    return `
+      <svg class="overview-welcome-art" viewBox="0 0 680 300" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+        <defs>
+          <linearGradient id="welcomeGradient" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#4594ee"/><stop offset="1" stop-color="#4934e9"/></linearGradient>
+          <linearGradient id="towerGradient" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#22bfea"/><stop offset="1" stop-color="#3751eb"/></linearGradient>
+        </defs>
+        <rect width="680" height="300" fill="url(#welcomeGradient)"/>
+        <g opacity=".34" fill="#27a9ec"><polygon points="0,84 68,126 68,250 0,284"/><polygon points="71,168 143,122 211,166 211,300 71,300"/><polygon points="205,176 264,134 322,172 322,300 205,300"/><polygon points="307,108 382,62 457,109 457,300 307,300"/><polygon points="498,180 559,142 618,178 618,300 498,300"/><polygon points="597,138 680,92 680,300 597,300"/></g>
+        <g opacity=".9"><rect x="88" y="166" width="126" height="134" rx="4" fill="#5131e9"/><polygon points="88,166 153,132 214,166" fill="#4257ee"/><rect x="280" y="176" width="76" height="124" fill="#3368ea"/><polygon points="280,176 318,151 356,176" fill="#3786ee"/><rect x="397" y="133" width="86" height="167" fill="url(#towerGradient)"/><polygon points="397,133 439,105 483,133" fill="#29a5eb"/><rect x="559" y="211" width="70" height="89" fill="#315de5"/><polygon points="559,211 594,190 629,211" fill="#2d90ed"/></g>
+        <g transform="translate(117 139)"><path d="M0 38 72 0v50L0 88Z" fill="#67cff1"/><path d="M7 42 64 12v33L7 75Z" fill="#d8f3fb"/><path d="M23 57c8-22 11-26 19-29 5 10 7 15 19 18" fill="none" stroke="#6674ec" stroke-width="8" stroke-linecap="round"/></g>
+        <g transform="translate(203 162)"><ellipse cx="23" cy="32" rx="20" ry="8" fill="#1f7ae9"/><path d="M9 30c7-18 17-24 28-19 8 4 10 15 4 23" fill="none" stroke="#42c8ef" stroke-width="5"/><circle cx="23" cy="27" r="9" fill="#24bce9"/></g>
+        <g transform="translate(168 139)" fill="#fff"><circle cx="0" cy="0" r="6"/><path d="M-3 7h7l3 22H-6Z"/><path d="m0 13 15 7m-15-2-12 9" stroke="#fff" stroke-width="3" stroke-linecap="round"/></g>
+      </svg>`;
+  }
+
+  function renderOverviewPage() {
+    const energy = overviewEnergyContext();
+    const lightingPercent = Math.round((energy.current.lighting / energy.current.total) * 100);
+    const socketPercent = Math.round((energy.current.socket / energy.current.total) * 100);
+    const hvacPercent = 100 - lightingPercent - socketPercent;
+    return `
+      <section class="page overview-page">
+        <div class="overview-top-grid">
+          <div class="overview-stat-stack">
+            <article class="overview-stat-card">
+              <span>设备总数</span><strong class="purple">16</strong>
+              <div class="overview-stat-counts"><span>15</span><span>1</span></div>
+              <div class="overview-progress"><i style="width:93.75%"></i></div>
+              <div class="overview-stat-labels"><span>在线</span><span>离线</span></div>
+            </article>
+            <article class="overview-stat-card">
+              <span>功能总数</span><strong class="blue">56</strong>
+              <div class="overview-stat-counts"><span>53</span><span>3</span></div>
+              <div class="overview-progress blue"><i style="width:94.64%"></i></div>
+              <div class="overview-stat-labels"><span>在线</span><span>离线</span></div>
+            </article>
+          </div>
+          <article class="overview-card overview-function-card">
+            <header class="overview-card-title">功能占比</header>
+            <div class="overview-function-chart" role="img" aria-label="功能占比：照明类 50%，其他 39.29%，开关 7.14%，空调 3.57%">
+              <div class="overview-function-donut"><span>56<small>功能点</small></span></div>
+              <span class="function-label lighting">50.00%<small>照明类</small></span>
+              <span class="function-label other">39.29%<small>其他</small></span>
+              <span class="function-label switch">7.14%<small>开关</small></span>
+              <span class="function-label hvac">3.57%<small>空调</small></span>
+            </div>
+          </article>
+          <article class="overview-welcome-card">
+            ${renderWelcomeIllustration()}
+            <div class="overview-welcome-copy"><strong>Hello, admin</strong><span>欢迎使用 HDL GraView 可视化管理平台</span></div>
+          </article>
+        </div>
+
+        <section class="energy-dashboard" aria-labelledby="energyDashboardTitle">
+          <header class="energy-dashboard-header">
+            <h1 id="energyDashboardTitle">用电分析</h1>
+            <label class="energy-period-field" for="overviewPeriod"><span>统计月份</span><select id="overviewPeriod">
+              ${["2026-08", "2026-09", "2026-10"].map((month) => `<option value="${month}"${state.overview.selectedMonth === month ? " selected" : ""}>${month.replace("-", "年")}月</option>`).join("")}
+            </select></label>
+          </header>
+          <div class="energy-overview-grid">
+            <article class="overview-card energy-summary-card">
+              <header class="overview-card-title">用电概览</header>
+              <div class="energy-summary-columns">
+                <section><h2>当月累计电量</h2>${overviewSummaryRows(energy.current)}</section>
+                <section><h2>${energy.current.month.slice(0, 4)} 年累计电量</h2>${overviewSummaryRows(energy.annual)}</section>
+              </div>
+              <div class="energy-rate-row">
+                <span>当月环比 <strong class="${energy.monthOnMonth >= 0 ? "up" : "down"}">${formatRate(energy.monthOnMonth)}</strong></span>
+                <span>当月同比 <strong class="${energy.yearOnYear >= 0 ? "up" : "down"}">${formatRate(energy.yearOnYear)}</strong></span>
+              </div>
+            </article>
+            <article class="overview-card energy-distribution-card">
+              <header class="overview-card-title energy-distribution-title"><span>当月电力消耗分布</span></header>
+              <div class="energy-distribution-body">
+                <div class="energy-distribution-donut" style="--lighting:${lightingPercent}%;--socket:${lightingPercent + socketPercent}%" role="img" aria-label="照明 ${lightingPercent}%，插排 ${socketPercent}%，空调 ${hvacPercent}%"><span><strong>${formatEnergy(energy.current.total)}</strong><small>总用电量 / kWh</small></span></div>
+                <div class="energy-distribution-legend">
+                  <div><i class="energy-key lighting"></i><span>照明</span><strong>${lightingPercent}%</strong><small>${formatEnergy(energy.current.lighting)} kWh</small></div>
+                  <div><i class="energy-key socket"></i><span>插排</span><strong>${socketPercent}%</strong><small>${formatEnergy(energy.current.socket)} kWh</small></div>
+                  <div><i class="energy-key hvac"></i><span>空调</span><strong>${hvacPercent}%</strong><small>${formatEnergy(energy.current.hvac)} kWh</small></div>
+                </div>
+              </div>
+            </article>
+          </div>
+          <article class="overview-card energy-trend-card">
+            <header class="energy-trend-header"><h2>用电量变化趋势</h2><div class="energy-trend-tools"><div class="energy-range-switch overview-trend-range" role="group" aria-label="用电量趋势时间范围">${Object.entries(overviewTrendRangeLabels).map(([value, label]) => `<button type="button" class="${energy.trendRange === value ? "active" : ""}" data-action="overview-trend-range" data-range="${value}">${label}</button>`).join("")}</div><div class="energy-trend-legend"><span><i class="total"></i>总用电量</span><span><i class="lighting"></i>照明用电量</span><span><i class="hvac"></i>空调用电量</span><span><i class="socket"></i>插排用电量</span></div></div></header>
+            <div class="energy-chart-wrap">${energyTrendChart(energy.trend, energy.trendRange)}</div>
+          </article>
+        </section>
+      </section>`;
   }
 
   function renderNavigationPage() {
@@ -843,6 +1138,880 @@
     return entry.type === "设备离线" && entry.ip ? `${entry.message} IP地址：${entry.ip}` : entry.message;
   }
 
+  function energyFilterOptions(values, selected, allLabel) {
+    return [`<option value="all"${selected === "all" ? " selected" : ""}>${escapeHtml(allLabel)}</option>`, ...values.map((value) => `<option value="${escapeHtml(value)}"${selected === value ? " selected" : ""}>${escapeHtml(value)}</option>`)].join("");
+  }
+
+  function uniqueEnergyValues(field) {
+    return [...new Set(model.energyStatistics.map((item) => item[field]).filter((value) => value && value !== "—"))];
+  }
+
+  function energyAreaMatches(area, selectedArea) {
+    return selectedArea === "all" || area === selectedArea || area.startsWith(`${selectedArea} / `);
+  }
+
+  function renderEnergyAreaTreeNodes(nodes, selectedValue, context, targetKey = "", depth = 0) {
+    return nodes.map((node) => {
+      const hasChildren = Array.isArray(node.children) && node.children.length > 0;
+      const containsSelection = selectedValue === node.value || selectedValue.startsWith(`${node.value} / `);
+      const expanded = hasChildren && (depth === 0 || containsSelection);
+      return `
+        <div class="energy-region-node${expanded ? " expanded" : ""}" data-energy-region-node>
+          <div class="energy-region-node-row" style="--energy-region-depth:${depth}">
+            ${hasChildren ? `<button class="energy-region-branch" type="button" data-action="toggle-energy-region-node" aria-expanded="${expanded}" aria-label="展开或收起${escapeHtml(node.name)}"><i></i></button>` : `<span class="energy-region-branch-spacer"></span>`}
+            <button class="energy-region-option${selectedValue === node.value ? " selected" : ""}" type="button" data-action="select-energy-region" data-region-context="${escapeHtml(context)}" data-region-target="${escapeHtml(targetKey)}" data-region-value="${escapeHtml(node.value)}">${escapeHtml(node.name)}</button>
+          </div>
+          ${hasChildren ? `<div class="energy-region-children">${renderEnergyAreaTreeNodes(node.children, selectedValue, context, targetKey, depth + 1)}</div>` : ""}
+        </div>`;
+    }).join("");
+  }
+
+  function renderEnergyAreaPicker({ value, context, targetKey = "", allowAll = false, compact = false }) {
+    const displayValue = value === "all" ? "统计区域" : value;
+    return `
+      <div class="energy-region-picker${compact ? " compact" : ""}" data-energy-region-picker>
+        <button class="energy-region-trigger" type="button" data-action="toggle-energy-region-picker" aria-haspopup="tree" aria-expanded="false" title="${escapeHtml(displayValue)}"><span>${escapeHtml(displayValue)}</span><i></i></button>
+        <div class="energy-region-panel" role="tree">
+          ${allowAll ? `<button class="energy-region-all${value === "all" ? " selected" : ""}" type="button" data-action="select-energy-region" data-region-context="${escapeHtml(context)}" data-region-target="${escapeHtml(targetKey)}" data-region-value="all">全部区域</button>` : ""}
+          ${renderEnergyAreaTreeNodes(model.energyAreas, value, context, targetKey)}
+        </div>
+      </div>`;
+  }
+
+  function filteredEnergyStatistics() {
+    const view = state.energyClassification;
+    const deviceRemark = view.deviceRemark.trim().toLocaleLowerCase("zh-CN");
+    const deviceModel = view.deviceModel.trim().toLocaleLowerCase("zh-CN");
+    const functionName = view.functionName.trim().toLocaleLowerCase("zh-CN");
+    const filtered = model.energyStatistics.filter((item) => {
+      if (deviceRemark && !item.deviceRemark.toLocaleLowerCase("zh-CN").includes(deviceRemark)) return false;
+      if (view.deviceType !== "all" && item.deviceType !== view.deviceType) return false;
+      if (view.protocol !== "all" && item.protocol !== view.protocol) return false;
+      if (deviceModel && !item.deviceModel.toLocaleLowerCase("zh-CN").includes(deviceModel)) return false;
+      if (view.mode !== "all" && item.mode !== view.mode) return false;
+      if (functionName && !item.functionName.toLocaleLowerCase("zh-CN").includes(functionName)) return false;
+      if (view.usageType !== "all" && item.usageType !== view.usageType) return false;
+      if (!energyAreaMatches(item.statisticsArea, view.statisticsArea)) return false;
+      if (view.dataStatus !== "all" && item.dataStatus !== view.dataStatus) return false;
+      if (view.abnormalOnly && item.dataStatus === "正常") return false;
+      return true;
+    });
+    if (!view.sortKey) return filtered;
+    const direction = view.sortDirection === "desc" ? -1 : 1;
+    return filtered.sort((left, right) => {
+      const leftValue = left[view.sortKey];
+      const rightValue = right[view.sortKey];
+      const leftMissing = !Number.isFinite(leftValue);
+      const rightMissing = !Number.isFinite(rightValue);
+      if (leftMissing && rightMissing) return 0;
+      if (leftMissing) return 1;
+      if (rightMissing) return -1;
+      return (leftValue - rightValue) * direction;
+    });
+  }
+
+  function energyMeasurement(value, fractionDigits = 1) {
+    if (!Number.isFinite(value)) return "--";
+    return value.toLocaleString("zh-CN", { minimumFractionDigits: fractionDigits, maximumFractionDigits: fractionDigits });
+  }
+
+  function energySortButton(key, label) {
+    const view = state.energyClassification;
+    const active = view.sortKey === key;
+    const direction = active ? view.sortDirection : "";
+    return `<button class="sort-button${active ? ` active ${direction}` : ""}" type="button" data-action="sort-energy" data-sort-key="${escapeHtml(key)}" aria-label="按${escapeHtml(label)}${active && direction === "asc" ? "降序" : "升序"}排列">${escapeHtml(label)}<span class="sort-glyph" aria-hidden="true"><i class="sort-glyph-up"></i><i class="sort-glyph-down"></i></span></button>`;
+  }
+
+  function energyStatusPill(value, kind = "neutral") {
+    const className = kind === "data" ? (value === "正常" ? "success" : value === "待取数" ? "warning" : "danger") : value === "已分类" ? "success" : value === "部分分类" ? "warning" : "disabled";
+    return `<span class="status-pill ${className}">${escapeHtml(value)}</span>`;
+  }
+
+  function renderEnergyClassificationPage() {
+    const view = state.energyClassification;
+    const filtered = filteredEnergyStatistics();
+    const pageCount = Math.max(1, Math.ceil(filtered.length / view.pageSize));
+    view.page = Math.min(view.page, pageCount);
+    const pageItems = filtered.slice((view.page - 1) * view.pageSize, view.page * view.pageSize);
+    const usageTypes = model.energyTypes.filter((item) => item.enabled).map((item) => item.name);
+    const rows = pageItems.length
+      ? pageItems.map((item) => `
+          <tr>
+            <td title="${escapeHtml(item.deviceRemark)}">${escapeHtml(item.deviceRemark)}</td>
+            <td>${escapeHtml(item.deviceType)}</td>
+            <td>${escapeHtml(item.protocol)}</td>
+            <td title="${escapeHtml(item.deviceModel)}">${escapeHtml(item.deviceModel)}</td>
+            <td>${escapeHtml(item.mode)}</td>
+            <td title="${escapeHtml(item.functionName)}">${escapeHtml(item.functionName)}</td>
+            <td title="${escapeHtml(item.statisticsArea)}">${escapeHtml(item.statisticsArea)}</td>
+            <td>${escapeHtml(item.usageType)}</td>
+            <td>${energyMeasurement(item.currentAmpere)}</td>
+            <td>${energyMeasurement(item.voltage)}</td>
+            <td>${energyMeasurement(item.cumulativeEnergy)}</td>
+            <td>${energyStatusPill(item.dataStatus, "data")}</td>
+            <td class="action-cell energy-row-actions">
+              <button class="action-link" type="button" data-action="energy-details" data-id="${item.id}">详情</button>
+              <button class="action-link" type="button" data-action="energy-edit" data-id="${item.id}">编辑</button>
+            </td>
+          </tr>`).join("")
+      : `<tr><td colspan="13"><div class="empty-state"><div><strong>没有匹配的数据</strong>请调整筛选条件</div></div></td></tr>`;
+
+    return `
+      <section class="page device-reference-page energy-reference-page">
+        <div class="page-panel no-padding device-reference-panel energy-reference-panel">
+          <div class="device-reference-toolbar energy-reference-toolbar">
+            <div class="device-reference-filters energy-reference-filters" aria-label="能源统计分类筛选">
+              <label class="reference-search energy-filter-search">${icon("search")}<input type="search" value="${escapeHtml(view.deviceRemark)}" placeholder="设备备注" autocomplete="off" aria-label="设备备注" data-energy-text-filter="deviceRemark"></label>
+              <select data-energy-filter="deviceType" aria-label="设备类型">${energyFilterOptions(uniqueEnergyValues("deviceType"), view.deviceType, "设备类型")}</select>
+              <select data-energy-filter="protocol" aria-label="协议">${energyFilterOptions(uniqueEnergyValues("protocol"), view.protocol, "协议")}</select>
+              <label class="reference-search energy-filter-search">${icon("search")}<input type="search" value="${escapeHtml(view.deviceModel)}" placeholder="型号" autocomplete="off" aria-label="型号" data-energy-text-filter="deviceModel"></label>
+              <select data-energy-filter="mode" aria-label="统计模式">${energyFilterOptions(uniqueEnergyValues("mode"), view.mode, "统计模式")}</select>
+              <label class="reference-search energy-filter-search">${icon("search")}<input type="search" value="${escapeHtml(view.functionName)}" placeholder="功能名称" autocomplete="off" aria-label="功能名称" data-energy-text-filter="functionName"></label>
+              ${renderEnergyAreaPicker({ value: view.statisticsArea, context: "filter", allowAll: true, compact: true })}
+              <select data-energy-filter="usageType" aria-label="用电类型">${energyFilterOptions(usageTypes, view.usageType, "用电类型")}</select>
+              <select data-energy-filter="dataStatus" aria-label="数据状态">${energyFilterOptions(uniqueEnergyValues("dataStatus"), view.dataStatus, "数据状态")}</select>
+            </div>
+            <div class="device-reference-actions energy-reference-actions">
+              <button class="reference-link-button" type="button" data-action="manage-energy-types">${icon("manage")}用电类型</button>
+              <button class="reference-export-button" type="button" data-action="open-energy-add">${icon("plus")}添加</button>
+            </div>
+          </div>
+          <div class="table-wrap device-reference-table-wrap energy-reference-table-wrap">
+            <table class="data-table energy-reference-table">
+              <colgroup>
+                <col style="width:150px"><col style="width:80px"><col style="width:105px"><col style="width:140px"><col style="width:80px"><col style="width:130px"><col style="width:150px"><col style="width:80px"><col style="width:90px"><col style="width:90px"><col style="width:125px"><col style="width:90px"><col style="width:120px">
+              </colgroup>
+              <thead><tr><th>设备备注</th><th>设备类型</th><th>协议</th><th>型号</th><th>统计模式</th><th>功能名称</th><th>统计区域</th><th>用电类型</th><th>${energySortButton("currentAmpere", "电流(A)")}</th><th>${energySortButton("voltage", "电压(V)")}</th><th>${energySortButton("cumulativeEnergy", "累计能耗(kW·h)")}</th><th>数据状态</th><th>操作</th></tr></thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </div>
+          ${pagerHtml(filtered.length, view.page, view.pageSize, "energyClassification")}
+        </div>
+      </section>`;
+  }
+
+  function energyDeviceCoverage(device) {
+    const functions = model.energyDeviceFunctions.filter((item) => item.deviceId === device.id);
+    const items = model.energyStatistics.filter((item) => item.deviceId === device.id);
+    const functionIdSet = new Set(functions.map((item) => item.id));
+    const existingFunctionIds = [...new Set(items.map((item) => item.functionId).filter((id) => id && functionIdSet.has(id)))];
+    const wholeMeterAdded = device.deviceType === "电表" && items.some((item) => item.mode === "整表");
+    const complete = device.deviceType === "空开"
+      ? items.length > 0
+      : wholeMeterAdded || (functions.length > 0 && existingFunctionIds.length === functions.length);
+    return {
+      device,
+      functions,
+      items,
+      existingFunctionIds,
+      wholeMeterAdded,
+      complete,
+      partial: device.deviceType === "电表" && !wholeMeterAdded && existingFunctionIds.length > 0 && existingFunctionIds.length < functions.length,
+      available: functions.length > 0 && !complete,
+    };
+  }
+
+  function availableEnergyDevices() {
+    return model.energyDevices.filter((device) => energyDeviceCoverage(device).available);
+  }
+
+  function emptyEnergyDraft() {
+    return {
+      deviceId: "",
+      sourceType: "",
+      sourceDevice: "",
+      deviceType: "",
+      deviceRemark: "",
+      navigationArea: "",
+      selectedFunctionIds: [],
+      lockedFunctionIds: [],
+      mode: "整表",
+      assignments: {},
+    };
+  }
+
+  function createEnergyDraft() {
+    const draft = emptyEnergyDraft();
+    const device = availableEnergyDevices()[0];
+    if (device) selectEnergyDraftDevice(draft, device.id);
+    return draft;
+  }
+
+  function energyDraftDevice(draft) {
+    return model.energyDevices.find((item) => item.id === draft.deviceId) ?? null;
+  }
+
+  function energyDraftFunctions(draft) {
+    return model.energyDeviceFunctions.filter((item) => item.deviceId === draft.deviceId);
+  }
+
+  function selectEnergyDraftDevice(draft, deviceId) {
+    const device = model.energyDevices.find((item) => item.id === deviceId);
+    if (!device) return;
+    const coverage = energyDeviceCoverage(device);
+    if (!coverage.available) return;
+    const functions = coverage.functions;
+    Object.assign(draft, {
+      deviceId: device.id,
+      sourceType: device.sourceType,
+      sourceDevice: device.deviceName,
+      deviceType: device.deviceType,
+      deviceRemark: device.remark,
+      navigationArea: device.navigationArea,
+      selectedFunctionIds: coverage.partial ? [] : functions.map((item) => item.id),
+      lockedFunctionIds: coverage.partial ? [...coverage.existingFunctionIds] : [],
+      mode: coverage.partial ? "分相" : device.deviceType === "电表" ? "整表" : "回路",
+      assignments: {},
+    });
+  }
+
+  function energyDraftTargets(draft) {
+    const allFunctions = energyDraftFunctions(draft);
+    const selectedFunctions = allFunctions.filter((item) => draft.selectedFunctionIds.includes(item.id));
+    if (draft.deviceType === "空开") {
+      const item = selectedFunctions[0];
+      return item ? [{ key: item.id, functionName: item.name, functionType: item.functionType, function: item }] : [];
+    }
+    if (draft.mode === "整表") return [{ key: "整表", functionName: "全部设备功能", functionType: `${allFunctions.length} 个功能点`, function: null }];
+    return selectedFunctions.map((item) => ({ key: item.id, functionName: item.name, functionType: item.functionType, function: item }));
+  }
+
+  function ensureEnergyAssignment(draft, target, index = 0) {
+    if (!draft.assignments[target]) {
+      const defaultArea = draft.navigationArea?.startsWith("2号楼")
+        ? "2号楼 / 公共区"
+        : draft.navigationArea?.startsWith("园区") ? "园区 / 室外" : "1号楼 / 公共区";
+      const functionUsageDefaults = ["照明", "插座", "空调"];
+      const usage = target === "整表" ? "动力" : draft.deviceType === "空开" ? "其他" : (functionUsageDefaults[index] ?? "其他");
+      draft.assignments[target] = { area: defaultArea, usage };
+    }
+    return draft.assignments[target];
+  }
+
+  function renderEnergyAddStep(draft, step) {
+    if (step === 1) {
+      const candidates = availableEnergyDevices();
+      const rows = candidates.length ? candidates.map((device) => {
+        const coverage = energyDeviceCoverage(device);
+        return `
+        <tr class="energy-device-option${coverage.partial ? " partial" : ""}${draft.deviceId === device.id ? " selected" : ""}" data-action="energy-select-device" data-id="${device.id}" data-coverage="${coverage.partial ? "partial" : "new"}">
+          <td class="checkbox-cell"><input type="radio" name="energyDevice"${draft.deviceId === device.id ? " checked" : ""} aria-label="选择 ${escapeHtml(device.remark)}"></td>
+          <td>${escapeHtml(device.remark)}</td>
+          <td>${escapeHtml(device.deviceType)}</td>
+          <td>${escapeHtml(device.protocol)}</td>
+          <td title="${escapeHtml(device.model)}">${escapeHtml(device.model)}</td>
+          <td title="${escapeHtml(device.product)}">${escapeHtml(device.product)}</td>
+        </tr>`;
+      }).join("") : `<tr><td colspan="6"><div class="empty-state energy-device-empty"><div><strong>没有可添加的能源设备</strong>已添加整表或全部功能点的设备，请在主列表中编辑修改。</div></div></td></tr>`;
+      return `
+        <div class="energy-wizard-copy"><h3>选择能源设备</h3></div>
+        <div class="table-wrap energy-picker-table-wrap"><table class="data-table energy-picker-table"><colgroup><col style="width:56px"><col style="width:170px"><col style="width:100px"><col style="width:130px"><col style="width:190px"><col style="width:240px"></colgroup><thead><tr><th class="checkbox-cell"></th><th>设备备注</th><th>设备类型</th><th>协议</th><th>型号</th><th>产品名</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    }
+    const usageTypes = model.energyTypes.filter((item) => item.enabled).map((item) => item.name);
+    const isMeter = draft.deviceType === "电表";
+    const device = energyDraftDevice(draft);
+    const coverage = device ? energyDeviceCoverage(device) : null;
+    const lockedFunctionIds = new Set(draft.lockedFunctionIds ?? []);
+    const continuingPartial = isMeter && lockedFunctionIds.size > 0;
+    const targets = energyDraftTargets(draft);
+    const assignmentRows = isMeter && draft.mode === "分相"
+      ? energyDraftFunctions(draft).map((item) => ({
+        key: item.id,
+        functionName: item.name,
+        functionType: item.functionType,
+        function: item,
+        locked: lockedFunctionIds.has(item.id),
+        currentItem: coverage?.items.find((entry) => entry.functionId === item.id) ?? null,
+        selected: lockedFunctionIds.has(item.id) || draft.selectedFunctionIds.includes(item.id),
+      }))
+      : targets.map((target) => ({ ...target, selected: true }));
+    const wholeMeterFunctions = isMeter && draft.mode === "整表" ? energyDraftFunctions(draft) : [];
+    const wholeMeterAssignment = wholeMeterFunctions.length ? ensureEnergyAssignment(draft, "整表") : null;
+    const assignmentMarkup = wholeMeterFunctions.length ? `
+      <div class="energy-assignment-list energy-whole-assignment-list">
+        <div class="energy-assignment-header whole"><span>功能名称</span><span>功能类型</span><span>统计区域</span><span>用电类型</span></div>
+        <div class="energy-whole-assignment">
+          <div class="energy-whole-function-list">
+            ${wholeMeterFunctions.map((item) => `<div class="energy-whole-function-row"><strong title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</strong><span>${escapeHtml(item.functionType)}</span></div>`).join("")}
+          </div>
+          <div class="energy-region-field energy-whole-shared-field">${renderEnergyAreaPicker({ value: wholeMeterAssignment.area, context: "assignment", targetKey: "整表" })}</div>
+          <label class="energy-whole-shared-field"><select aria-label="整表用电类型" data-energy-assignment="usage" data-target="整表">${usageTypes.map((type) => `<option value="${escapeHtml(type)}"${wholeMeterAssignment.usage === type ? " selected" : ""}>${escapeHtml(type)}</option>`).join("")}</select></label>
+        </div>
+      </div>` : `
+      <div class="energy-assignment-list">
+        <div class="energy-assignment-header"><span></span><span>功能名称</span><span>功能类型</span><span>统计区域</span><span>用电类型</span></div>
+        ${assignmentRows.map((target, index) => {
+          const assignment = target.locked
+            ? { area: target.currentItem?.statisticsArea ?? "—", usage: target.currentItem?.usageType ?? "—" }
+            : target.selected ? ensureEnergyAssignment(draft, target.key, index) : null;
+          const selector = target.locked
+            ? `<span class="energy-edit-scope readonly">已添加</span>`
+            : isMeter && draft.mode === "分相" ? `<input class="table-checkbox" type="checkbox" data-action="energy-toggle-function" data-id="${escapeHtml(target.key)}"${target.selected ? " checked" : ""} aria-label="选择功能 ${escapeHtml(target.functionName)}">` : `<span class="energy-assignment-checkbox-spacer"></span>`;
+          const areaCell = target.locked
+            ? `<span class="energy-edit-readonly" title="${escapeHtml(assignment.area)}">${escapeHtml(assignment.area)}</span>`
+            : target.selected ? renderEnergyAreaPicker({ value: assignment.area, context: "assignment", targetKey: target.key }) : `<span class="energy-assignment-unselected">未选择</span>`;
+          const usageCell = target.locked
+            ? `<span class="energy-edit-readonly">${escapeHtml(assignment.usage)}</span>`
+            : target.selected ? `<select aria-label="${escapeHtml(target.functionName)}用电类型" data-energy-assignment="usage" data-target="${escapeHtml(target.key)}">${usageTypes.map((type) => `<option value="${escapeHtml(type)}"${assignment.usage === type ? " selected" : ""}>${escapeHtml(type)}</option>`).join("")}</select>` : `<span class="energy-assignment-unselected">未选择</span>`;
+          return `<div class="energy-assignment-row${target.locked ? " existing readonly" : target.selected ? "" : " unselected"}" data-function-id="${escapeHtml(target.key)}" data-function-state="${target.locked ? "existing" : target.selected ? "selected" : "available"}"><div class="energy-assignment-checkbox">${selector}</div><div class="energy-assignment-function" title="${escapeHtml(target.functionName)}"><strong>${escapeHtml(target.functionName)}</strong></div><div class="energy-assignment-function-type">${escapeHtml(target.functionType)}</div><div class="energy-region-field">${areaCell}</div><label>${usageCell}</label></div>`;
+        }).join("")}
+      </div>`;
+    return `
+      <div class="energy-wizard-copy"><h3>${isMeter ? "设置统计方式、区域与用电类型" : "设置统计区域与用电类型"}</h3><p>${isMeter ? "电表可选择整表或分相统计；分相时直接使用设备返回的功能名称和功能类型，不再使用固定相位名称。" : "空开不需要选择统计方式，直接按设备功能点设置统计区域和用电类型。"}</p></div>
+      <div class="energy-object-preview"><div><strong>${escapeHtml(device?.remark ?? "—")}</strong><small>${escapeHtml(draft.sourceDevice)} · ${escapeHtml(device?.product ?? "—")}</small></div></div>
+      ${isMeter ? `<div class="energy-mode-switch">
+        <button type="button" class="${draft.mode === "整表" ? "active" : ""}" data-action="energy-select-mode" data-mode="整表"${continuingPartial ? " disabled" : ""}><strong>整表统计</strong><small>${continuingPartial ? "该设备已有分相统计项，如需改为整表请在主列表中编辑" : "全部设备功能共用同一统计区域和用电类型，保存后生成一行"}</small></button>
+        <button type="button" class="${draft.mode === "分相" ? "active" : ""}" data-action="energy-select-mode" data-mode="分相"><strong>分相统计</strong><small>勾选参与统计的设备功能点，分别设置区域和用电类型，按功能点生成多行</small></button>
+      </div>` : ""}
+      ${continuingPartial ? `<div class="energy-edit-scope-note energy-add-scope-note">该设备已添加 ${lockedFunctionIds.size}/${energyDraftFunctions(draft).length} 个功能点；已添加项仅供查看，本次只需勾选并配置剩余功能点。</div>` : ""}
+      ${assignmentMarkup}`;
+  }
+
+  function openEnergyAddModal(reset = false) {
+    const view = state.energyClassification;
+    if (reset || !view.draft) {
+      view.draft = createEnergyDraft();
+      view.addStep = 1;
+    }
+    const labels = ["选择设备", "区域与类型"];
+    const canAdvance = Boolean(view.draft.deviceId && availableEnergyDevices().some((device) => device.id === view.draft.deviceId));
+    const canSave = canAdvance && energyDraftTargets(view.draft).length > 0;
+    const primaryDisabled = view.addStep === 2 ? !canSave : !canAdvance;
+    openModal({
+      title: "添加能源设备",
+      xlarge: true,
+      body: `<div class="energy-stepper">${labels.map((label, index) => `<div class="${view.addStep === index + 1 ? "active" : view.addStep > index + 1 ? "done" : ""}"><i>${view.addStep > index + 1 ? "✓" : index + 1}</i><span>${label}</span></div>`).join("")}</div><div class="energy-wizard-body">${renderEnergyAddStep(view.draft, view.addStep)}</div>`,
+      footer: `<button class="button" type="button" data-action="close-modal">取消</button>${view.addStep > 1 ? `<button class="button" type="button" data-action="energy-step-prev">上一步</button>` : ""}<button class="button primary" type="button" data-action="${view.addStep === 2 ? "save-energy-statistics" : "energy-step-next"}"${primaryDisabled ? " disabled" : ""}>${view.addStep === 2 ? `${icon("save")}保存并生效` : "下一步"}</button>`,
+    });
+  }
+
+  function nextEnergyStatisticIndex() {
+    const numbers = model.energyStatistics
+      .map((item) => String(item.id).match(/^energy-(\d+)$/)?.[1])
+      .filter(Boolean)
+      .map(Number);
+    return (numbers.length ? Math.max(...numbers) : 0) + 1;
+  }
+
+  function saveEnergyStatistics() {
+    const view = state.energyClassification;
+    const draft = view.draft;
+    const device = energyDraftDevice(draft);
+    if (!device) {
+      showToast("请选择可添加的能源设备", "warning");
+      return;
+    }
+    const coverage = energyDeviceCoverage(device);
+    if (!coverage.available) {
+      showToast("该设备已完整添加，请在主列表中编辑修改", "warning");
+      return;
+    }
+    const targets = energyDraftTargets(draft);
+    if (!targets.length) {
+      showToast(coverage.partial ? "请至少选择一个尚未添加的设备功能" : "请至少选择一个用于能耗统计的设备功能", "warning");
+      return;
+    }
+    if (draft.mode === "整表" && coverage.items.length) {
+      showToast("该设备已有分相统计项，如需改为整表请在主列表中编辑", "warning");
+      return;
+    }
+    const duplicateTarget = targets.find((target) => target.function?.id && coverage.existingFunctionIds.includes(target.function.id));
+    if (duplicateTarget) {
+      showToast(`功能“${duplicateTarget.functionName}”已添加，请勿重复保存`, "warning");
+      return;
+    }
+    const functionCount = energyDraftFunctions(draft).length;
+    const finalFunctionCount = new Set([...coverage.existingFunctionIds, ...targets.map((target) => target.function?.id).filter(Boolean)]).size;
+    const isPartialFunctionSelection = draft.mode === "分相" && finalFunctionCount < functionCount;
+    const startIndex = nextEnergyStatisticIndex();
+    if (coverage.partial && coverage.items.length) {
+      recordEnergyHistory(coverage.items[0], energyDemoEffectiveAt, `继续添加 ${targets.length} 个功能点`);
+      coverage.items.forEach((item) => {
+        item.effectiveAt = energyDemoEffectiveAt;
+        item.periodEnergy = 0;
+      });
+    }
+    targets.forEach((target, index) => {
+      const assignment = ensureEnergyAssignment(draft, target.key, index);
+      const isBreaker = draft.deviceType === "空开";
+      model.energyStatistics.unshift({
+        id: `energy-${String(startIndex + index).padStart(3, "0")}`,
+        deviceId: draft.deviceId,
+        functionId: target.function?.id ?? null,
+        name: draft.mode === "整表" ? `${draft.deviceRemark} 整表` : `${draft.deviceRemark} ${target.functionName}`,
+        deviceRemark: device?.remark ?? draft.deviceRemark,
+        deviceType: device?.deviceType ?? draft.deviceType,
+        protocol: device?.protocol ?? "—",
+        deviceModel: device?.model ?? "—",
+        productName: device?.product ?? "—",
+        sourceType: draft.sourceType,
+        sourceDevice: draft.sourceDevice,
+        circuit: draft.mode === "整表" ? "全部设备功能" : (target.function?.circuit ?? target.functionName),
+        mode: isBreaker ? "回路" : draft.mode,
+        phase: "—",
+        functionName: target.functionName,
+        functionType: target.functionType,
+        navigationArea: device?.navigationArea ?? "—",
+        statisticsArea: assignment.area,
+        usageType: assignment.usage,
+        currentAmpere: null,
+        voltage: null,
+        cumulativeEnergy: null,
+        periodEnergy: null,
+        classificationStatus: isPartialFunctionSelection ? "部分分类" : "已分类",
+        dataStatus: "待取数",
+        enabled: true,
+        effectiveAt: energyDemoEffectiveAt,
+      });
+    });
+    const updatedCoverage = energyDeviceCoverage(device);
+    updatedCoverage.items.forEach((item) => {
+      item.classificationStatus = updatedCoverage.complete ? "已分类" : "部分分类";
+    });
+    view.draft = null;
+    view.page = 1;
+    closeModal();
+    render();
+    showToast(`${coverage.partial ? "已继续添加" : "已生成"} ${targets.length} 个能源统计项`, "success");
+  }
+
+  const energyDemoEffectiveAt = "2026-10-30 14:00";
+
+  function energySourceKey(item) {
+    return item.deviceId || item.sourceDevice || item.deviceRemark || item.id;
+  }
+
+  function energyDeviceForItem(item) {
+    return model.energyDevices.find((device) => device.id === item.deviceId)
+      ?? model.energyDevices.find((device) => device.remark === item.deviceRemark)
+      ?? null;
+  }
+
+  function energyFunctionsForItem(item) {
+    const device = energyDeviceForItem(item);
+    return device ? model.energyDeviceFunctions.filter((entry) => entry.deviceId === device.id) : [];
+  }
+
+  function energyGroupItems(item) {
+    const sourceKey = energySourceKey(item);
+    return model.energyStatistics.filter((entry) => entry.deviceType === "电表" && energySourceKey(entry) === sourceKey);
+  }
+
+  function findEnergyFunctionItem(groupItems, func) {
+    return groupItems.find((entry) => entry.functionId === func.id)
+      ?? groupItems.find((entry) => entry.functionName === func.name)
+      ?? null;
+  }
+
+  function createEnergyEditDraft(item) {
+    const device = energyDeviceForItem(item);
+    const functions = energyFunctionsForItem(item);
+    const groupItems = energyGroupItems(item);
+    const editedFunction = functions.find((entry) => entry.id === item.functionId)
+      ?? functions.find((entry) => entry.name === item.functionName)
+      ?? null;
+    const assignments = {
+      "整表": { area: item.statisticsArea, usage: item.usageType },
+    };
+    functions.forEach((func) => {
+      const current = findEnergyFunctionItem(groupItems, func);
+      assignments[func.id] = {
+        area: current?.statisticsArea ?? item.statisticsArea,
+        usage: current?.usageType ?? item.usageType,
+      };
+    });
+    return {
+      itemId: item.id,
+      deviceId: device?.id ?? item.deviceId ?? "",
+      sourceKey: energySourceKey(item),
+      originMode: item.mode,
+      mode: item.mode,
+      editedFunctionId: editedFunction?.id ?? item.functionId ?? "",
+      assignments,
+    };
+  }
+
+  function renderEnergyEditContent(item, draft) {
+    const device = energyDeviceForItem(item);
+    const functions = energyFunctionsForItem(item);
+    const groupItems = energyGroupItems(item);
+    const visibleSplitFunctions = draft.originMode === "整表"
+      ? functions
+      : functions.filter((func) => Boolean(findEnergyFunctionItem(groupItems, func)));
+    const usageTypes = model.energyTypes.filter((entry) => entry.enabled).map((entry) => entry.name);
+    const options = (selected) => usageTypes.map((type) => `<option value="${escapeHtml(type)}"${selected === type ? " selected" : ""}>${escapeHtml(type)}</option>`).join("");
+    let assignmentMarkup = "";
+
+    if (draft.mode === "整表") {
+      const assignment = draft.assignments["整表"];
+      assignmentMarkup = `
+        <div class="energy-assignment-list energy-whole-assignment-list">
+          <div class="energy-assignment-header whole"><span>功能名称</span><span>功能类型</span><span>统计区域</span><span>用电类型</span></div>
+          <div class="energy-whole-assignment">
+            <div class="energy-whole-function-list">
+              ${functions.map((func) => `<div class="energy-whole-function-row"><strong title="${escapeHtml(func.name)}">${escapeHtml(func.name)}</strong><span>${escapeHtml(func.functionType)}</span></div>`).join("")}
+            </div>
+            <div class="energy-region-field energy-whole-shared-field">${renderEnergyAreaPicker({ value: assignment.area, context: "edit-assignment", targetKey: "整表" })}</div>
+            <label class="energy-whole-shared-field"><select aria-label="整表用电类型" data-energy-edit-assignment="usage" data-target="整表">${options(assignment.usage)}</select></label>
+          </div>
+        </div>`;
+    } else {
+      const allEditable = draft.originMode === "整表";
+      assignmentMarkup = `
+        <div class="energy-edit-scope-note">${allEditable ? "整表改为分相后，三个设备功能分别生成统计记录，可分别设置区域和用电类型。" : "当前分相可以修改；同一电表其他已添加功能点仅供查看，未添加功能点不在编辑中显示。"}</div>
+        <div class="energy-assignment-list energy-edit-assignment-list">
+          <div class="energy-assignment-header"><span></span><span>功能名称</span><span>功能类型</span><span>统计区域</span><span>用电类型</span></div>
+          ${visibleSplitFunctions.map((func) => {
+            const assignment = draft.assignments[func.id];
+            const editable = allEditable || func.id === draft.editedFunctionId;
+            const scopeLabel = editable ? "可编辑" : "仅查看";
+            const areaCell = editable
+              ? renderEnergyAreaPicker({ value: assignment.area, context: "edit-assignment", targetKey: func.id })
+              : `<span class="energy-edit-readonly" title="${escapeHtml(assignment.area)}">${escapeHtml(assignment.area)}</span>`;
+            const usageCell = editable
+              ? `<select aria-label="${escapeHtml(func.name)}用电类型" data-energy-edit-assignment="usage" data-target="${escapeHtml(func.id)}">${options(assignment.usage)}</select>`
+              : `<span class="energy-edit-readonly">${escapeHtml(assignment.usage)}</span>`;
+            return `<div class="energy-assignment-row${editable ? "" : " readonly"}"><div class="energy-edit-scope ${editable ? "editable" : "readonly"}">${scopeLabel}</div><div class="energy-assignment-function" title="${escapeHtml(func.name)}"><strong>${escapeHtml(func.name)}</strong></div><div class="energy-assignment-function-type">${escapeHtml(func.functionType)}</div><div class="energy-region-field">${areaCell}</div><label>${usageCell}</label></div>`;
+          }).join("")}
+        </div>`;
+    }
+
+    return `
+      <div class="energy-object-preview"><div><strong>${escapeHtml(device?.remark ?? item.deviceRemark)}</strong><small>${escapeHtml(item.sourceDevice)} · ${escapeHtml(device?.product ?? item.productName ?? "—")}</small></div></div>
+      <div class="energy-mode-switch energy-edit-mode-switch">
+        <button type="button" class="${draft.mode === "整表" ? "active" : ""}" data-action="energy-edit-select-mode" data-mode="整表"><strong>整表统计</strong><small>全部设备功能共用一组统计区域和用电类型，保存后列表显示一行</small></button>
+        <button type="button" class="${draft.mode === "分相" ? "active" : ""}" data-action="energy-edit-select-mode" data-mode="分相"><strong>分相统计</strong><small>设备功能分别设置区域和用电类型，保存后按功能点显示多行</small></button>
+      </div>
+      ${assignmentMarkup}`;
+  }
+
+  function recordEnergyHistory(item, effectiveTo, change) {
+    const historyItems = item.deviceType === "电表" ? energyGroupItems(item) : [item];
+    const uniqueValues = (field) => [...new Set(historyItems.map((entry) => entry[field]).filter((value) => value && value !== "—"))];
+    const modes = uniqueValues("mode");
+    const areas = uniqueValues("statisticsArea");
+    const usageTypes = uniqueValues("usageType");
+    const effectiveStarts = historyItems.map((entry) => entry.effectiveAt).filter((value) => value && value !== "—").sort();
+    const periodEnergy = sumEnergyValues(historyItems, "cumulativeEnergy");
+    model.energyClassificationHistory.push({
+      id: `energy-history-${model.energyClassificationHistory.length + 1}`,
+      sourceKey: energySourceKey(item),
+      deviceRemark: item.deviceRemark,
+      sourceDevice: item.sourceDevice,
+      deviceModel: item.deviceModel,
+      mode: modes.length === 1 ? modes[0] : modes.join("、"),
+      functionName: item.deviceType === "电表" && modes.includes("分相") ? `${historyItems.length} 个功能点` : item.functionName,
+      functionType: item.deviceType === "电表" && modes.includes("分相") ? "设备功能汇总" : item.functionType,
+      statisticsArea: areas.length > 1 ? `多区域（${areas.length} 项）` : (areas[0] ?? "—"),
+      usageType: usageTypes.length > 1 ? usageTypes.join("、") : (usageTypes[0] ?? "—"),
+      effectiveFrom: effectiveStarts.at(-1) ?? item.effectiveAt,
+      effectiveTo,
+      periodEnergy,
+      change,
+    });
+  }
+
+  function splitEnergyValue(total, count, index) {
+    if (!Number.isFinite(total) || !count) return null;
+    const base = Math.round((total / count) * 10) / 10;
+    if (index < count - 1) return base;
+    return Math.round((total - base * (count - 1)) * 10) / 10;
+  }
+
+  function sumEnergyValues(items, field) {
+    const values = items.map((entry) => entry[field]).filter(Number.isFinite);
+    return values.length ? Math.round(values.reduce((sum, value) => sum + value, 0) * 10) / 10 : null;
+  }
+
+  function averageEnergyValues(items, field) {
+    const values = items.map((entry) => entry[field]).filter(Number.isFinite);
+    return values.length ? Math.round((values.reduce((sum, value) => sum + value, 0) / values.length) * 10) / 10 : null;
+  }
+
+  function replaceEnergyGroup(groupItems, replacements) {
+    const indexes = groupItems.map((entry) => model.energyStatistics.indexOf(entry)).filter((index) => index >= 0);
+    const insertAt = indexes.length ? Math.min(...indexes) : 0;
+    model.energyStatistics = model.energyStatistics.filter((entry) => !groupItems.includes(entry));
+    model.energyStatistics.splice(insertAt, 0, ...replacements);
+  }
+
+  function saveEnergyMeterEdit(id) {
+    const item = model.energyStatistics.find((entry) => entry.id === id);
+    const draft = state.energyClassification.editDraft;
+    if (!item || !draft) return;
+    const device = energyDeviceForItem(item);
+    const functions = energyFunctionsForItem(item);
+    const groupItems = energyGroupItems(item);
+
+    if (draft.originMode === "分相" && draft.mode === "整表") {
+      recordEnergyHistory(item, energyDemoEffectiveAt, "分相改为整表");
+      const assignment = draft.assignments["整表"];
+      const wholeItem = {
+        ...item,
+        deviceId: device?.id ?? item.deviceId,
+        functionId: null,
+        name: `${item.deviceRemark} 整表`,
+        circuit: "全部设备功能",
+        mode: "整表",
+        functionName: "全部设备功能",
+        functionType: `${functions.length} 个功能点`,
+        statisticsArea: assignment.area,
+        usageType: assignment.usage,
+        currentAmpere: sumEnergyValues(groupItems, "currentAmpere"),
+        voltage: averageEnergyValues(groupItems, "voltage"),
+        cumulativeEnergy: sumEnergyValues(groupItems, "cumulativeEnergy"),
+        periodEnergy: 0,
+        classificationStatus: "已分类",
+        dataStatus: groupItems.some((entry) => entry.dataStatus !== "正常") ? "部分异常" : "正常",
+        enabled: groupItems.some((entry) => entry.enabled),
+        effectiveAt: energyDemoEffectiveAt,
+      };
+      replaceEnergyGroup(groupItems, [wholeItem]);
+    } else if (draft.originMode === "整表" && draft.mode === "分相") {
+      recordEnergyHistory(item, energyDemoEffectiveAt, "整表改为分相");
+      const splitItems = functions.map((func, index) => {
+        const assignment = draft.assignments[func.id];
+        return {
+          ...item,
+          id: index === 0 ? item.id : `${item.id}-part-${index + 1}`,
+          deviceId: device?.id ?? item.deviceId,
+          functionId: func.id,
+          name: `${item.deviceRemark} ${func.name}`,
+          circuit: func.circuit,
+          mode: "分相",
+          functionName: func.name,
+          functionType: func.functionType,
+          statisticsArea: assignment.area,
+          usageType: assignment.usage,
+          currentAmpere: splitEnergyValue(item.currentAmpere, functions.length, index),
+          voltage: Number.isFinite(item.voltage) && item.voltage > 300 ? Math.round((item.voltage / Math.sqrt(3)) * 10) / 10 : item.voltage,
+          cumulativeEnergy: splitEnergyValue(item.cumulativeEnergy, functions.length, index),
+          periodEnergy: 0,
+          classificationStatus: "已分类",
+          effectiveAt: energyDemoEffectiveAt,
+        };
+      });
+      replaceEnergyGroup(groupItems, splitItems);
+    } else {
+      const targetKey = item.mode === "整表" ? "整表" : draft.editedFunctionId;
+      const assignment = draft.assignments[targetKey];
+      const areaChanged = item.statisticsArea !== assignment.area;
+      const typeChanged = item.usageType !== assignment.usage;
+      if (!areaChanged && !typeChanged) {
+        closeModal();
+        showToast("未检测到分类变化", "info");
+        return;
+      }
+      const changes = [areaChanged ? "统计区域" : "", typeChanged ? "用电类型" : ""].filter(Boolean).join("、");
+      recordEnergyHistory(item, energyDemoEffectiveAt, `修改${changes}`);
+      item.statisticsArea = assignment.area;
+      item.usageType = assignment.usage;
+      item.periodEnergy = 0;
+      item.classificationStatus = "已分类";
+      item.effectiveAt = energyDemoEffectiveAt;
+    }
+
+    state.energyClassification.editDraft = null;
+    closeModal();
+    state.energyClassification.page = 1;
+    render();
+    showToast(`分类已更新：${draft.originMode} → ${draft.mode}；历史区间能耗已保留`, "success");
+  }
+
+  function energyHistoryRows(item) {
+    const sourceKey = energySourceKey(item);
+    const closedRows = model.energyClassificationHistory.filter((entry) => entry.sourceKey === sourceKey);
+    return closedRows.sort((left, right) => String(right.effectiveFrom).localeCompare(String(left.effectiveFrom), "zh-CN"));
+  }
+
+  function renderCurrentEnergyAssignment(item) {
+    const effective = item.effectiveAt && item.effectiveAt !== "—";
+    const energyValue = Number.isFinite(item.cumulativeEnergy) ? `${energyMeasurement(item.cumulativeEnergy)} kW·h` : "--";
+    const currentValue = Number.isFinite(item.currentAmpere) ? `${energyMeasurement(item.currentAmpere)} A` : "--";
+    const voltageValue = Number.isFinite(item.voltage) ? `${energyMeasurement(item.voltage)} V` : "--";
+    return `
+      <section class="energy-current-card">
+        <header>
+          <div><span class="energy-current-status${effective ? "" : " inactive"}">${effective ? "当前生效" : "尚未生效"}</span><h3>当前能耗归属</h3><p>以下区域、用电类型及统计方式为当前统计口径。</p></div>
+          <div class="energy-current-live-metrics"><div><span>电流</span><strong>${currentValue}</strong></div><div><span>电压</span><strong>${voltageValue}</strong></div></div>
+          <div class="energy-current-total"><span>累计能耗</span><strong>${energyValue}</strong></div>
+        </header>
+        <div class="energy-current-grid">
+          <div><span>统计模式</span><strong>${escapeHtml(item.mode)}</strong></div>
+          <div><span>功能名称</span><strong>${escapeHtml(item.functionName || "—")}</strong></div>
+          <div><span>统计区域</span><strong>${escapeHtml(item.statisticsArea || "—")}</strong></div>
+          <div><span>用电类型</span><strong>${escapeHtml(item.usageType || "—")}</strong></div>
+          <div class="wide"><span>生效区间</span><strong>${effective ? `${escapeHtml(item.effectiveAt)} 至今` : "—"}</strong></div>
+        </div>
+      </section>`;
+  }
+
+  function renderEnergyHistory(item) {
+    const rows = energyHistoryRows(item);
+    return `
+      <section class="energy-history-section">
+        <div class="energy-history-heading"><div><h3>历史能耗</h3></div><span>${rows.length} 条</span></div>
+        ${item.deviceType === "电表" ? `<div class="energy-history-scope-note"><strong>统计口径</strong><span>每条记录汇总设备在一个生效区间内产生的能耗。分相模式合计该设备各功能点的区间能耗，整表模式记录设备整表的区间能耗；区域、用电类型或统计模式变更时结束当前区间并生成新记录，已结束区间不按新配置回算。</span></div>` : ""}
+        <div class="table-wrap energy-history-table-wrap"><table class="data-table energy-history-table">
+          <thead><tr><th>生效区间</th><th>来源快照</th><th>统计模式</th><th>统计区域</th><th>用电类型</th><th>设备区间能耗(kW·h)</th></tr></thead>
+          <tbody>${rows.map((entry) => `<tr><td><strong>${escapeHtml(entry.effectiveFrom)}</strong><span>至 ${escapeHtml(entry.effectiveTo)}</span></td><td><strong>${escapeHtml(entry.deviceRemark)}</strong><span>${escapeHtml(entry.functionName)} · ${escapeHtml(entry.deviceModel || "—")}</span></td><td>${escapeHtml(entry.mode)}</td><td>${escapeHtml(entry.statisticsArea)}</td><td>${escapeHtml(entry.usageType)}</td><td>${energyMeasurement(entry.periodEnergy)}</td></tr>`).join("")}</tbody>
+        </table></div>
+        <div class="energy-history-footnote">Demo 的设备区间能耗为脱敏 Mock 快照；正式实现应按设备及分类版本的起止时间计算区间内的实际增量能耗。</div>
+      </section>`;
+  }
+
+  function energyDetailAnalysis(item) {
+    const analytics = model.energyDetailAnalytics?.[item.id]
+      ?? model.energyDetailAnalytics?.[energySourceKey(item)]
+      ?? model.energyDetailAnalytics?.default
+      ?? null;
+    if (!analytics) return null;
+    const groupItems = energyGroupItems(item).filter((entry) => Number.isFinite(entry.cumulativeEnergy));
+    const groupEnergy = groupItems.reduce((total, entry) => total + entry.cumulativeEnergy, 0);
+    const factor = item.mode === "分相" && groupItems.length > 1 && groupEnergy > 0 && Number.isFinite(item.cumulativeEnergy)
+      ? item.cumulativeEnergy / groupEnergy
+      : 1;
+    return {
+      ...analytics,
+      summary: {
+        ...analytics.summary,
+        monthEnergy: analytics.summary.monthEnergy * factor,
+        dailyAverage: analytics.summary.dailyAverage * factor,
+      },
+      series: Object.fromEntries(Object.entries(analytics.series).map(([key, points]) => [key, points.map((point) => ({ ...point, value: point.value * factor }))])),
+    };
+  }
+
+  function energyTrendSvg(points) {
+    const width = 760;
+    const height = 236;
+    const plot = { left: 48, right: 20, top: 22, bottom: 42 };
+    const plotWidth = width - plot.left - plot.right;
+    const plotHeight = height - plot.top - plot.bottom;
+    const values = points.map((point) => Number(point.value) || 0);
+    const rawMax = Math.max(...values, 1);
+    const maxValue = Math.ceil(rawMax * 1.2 * 10) / 10;
+    const xAt = (index) => plot.left + (points.length > 1 ? (plotWidth * index) / (points.length - 1) : plotWidth / 2);
+    const yAt = (value) => plot.top + plotHeight - (value / maxValue) * plotHeight;
+    const coordinates = points.map((point, index) => ({ ...point, x: xAt(index), y: yAt(Number(point.value) || 0) }));
+    const linePoints = coordinates.map((point) => `${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(" ");
+    const areaPath = coordinates.length ? `M ${coordinates[0].x.toFixed(1)} ${(plot.top + plotHeight).toFixed(1)} L ${linePoints.replaceAll(" ", " L ")} L ${coordinates.at(-1).x.toFixed(1)} ${(plot.top + plotHeight).toFixed(1)} Z` : "";
+    const grid = [0, 0.25, 0.5, 0.75, 1].map((ratio) => {
+      const y = plot.top + plotHeight * ratio;
+      const value = maxValue * (1 - ratio);
+      return `<line x1="${plot.left}" y1="${y}" x2="${width - plot.right}" y2="${y}" class="energy-trend-grid-line"/><text x="${plot.left - 9}" y="${y + 4}" text-anchor="end" class="energy-trend-y-label">${value.toFixed(value >= 10 ? 0 : 1)}</text>`;
+    }).join("");
+    const labelStep = Math.max(1, Math.ceil(points.length / 6));
+    const labels = coordinates.map((point, index) => (index % labelStep === 0 || index === coordinates.length - 1 ? `<text x="${point.x}" y="${height - 13}" text-anchor="middle" class="energy-trend-x-label">${escapeHtml(point.label)}</text>` : "")).join("");
+    const dots = coordinates.map((point, index) => `<circle cx="${point.x}" cy="${point.y}" r="${index === coordinates.length - 1 ? 4.5 : 3}" class="energy-trend-dot${index === coordinates.length - 1 ? " latest" : ""}"><title>${escapeHtml(point.label)}：${energyMeasurement(Number(point.value))} kW·h</title></circle>`).join("");
+    const latest = coordinates.at(-1);
+    const latestMarker = latest ? `<g class="energy-trend-latest"><rect x="${Math.min(width - 104, Math.max(plot.left, latest.x - 42))}" y="${Math.max(4, latest.y - 38)}" width="84" height="26" rx="5"></rect><text x="${Math.min(width - 62, Math.max(plot.left + 42, latest.x))}" y="${Math.max(21, latest.y - 21)}" text-anchor="middle">${energyMeasurement(Number(latest.value))} kW·h</text></g>` : "";
+    return `<svg class="energy-trend-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="能耗变化时间轴"><defs><linearGradient id="energyTrendFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#8b45e6" stop-opacity="0.28"></stop><stop offset="100%" stop-color="#8b45e6" stop-opacity="0.02"></stop></linearGradient></defs>${grid}<path d="${areaPath}" fill="url(#energyTrendFill)"></path><polyline points="${linePoints}" class="energy-trend-line"></polyline>${dots}${labels}${latestMarker}</svg>`;
+  }
+
+  function renderEnergyAnalysis(item) {
+    const analytics = energyDetailAnalysis(item);
+    if (!analytics) return "";
+    const summary = analytics.summary;
+    const range = state.energyClassification.detailRange;
+    const points = analytics.series[range] ?? analytics.series["30d"] ?? [];
+    const rangeCopy = { "7d": "近 7 天", "30d": "近 30 天", "12m": "近 12 个月" };
+    const assignment = `${item.statisticsArea || "—"} · ${item.usageType || "—"}`;
+    const effectiveRange = item.effectiveAt && item.effectiveAt !== "—" ? `${item.effectiveAt} 至今` : "尚未生效";
+    const metrics = [
+      { label: "本月用电", value: `${energyMeasurement(summary.monthEnergy)} kW·h`, note: `当前生效归属：${assignment}`, tone: "purple" },
+      { label: "日均用电", value: `${energyMeasurement(summary.dailyAverage, 2)} kW·h`, note: `生效区间：${effectiveRange}`, tone: "blue" },
+    ];
+    return `
+      <section class="energy-analysis-section">
+        <div class="energy-metric-grid">${metrics.map((metric) => `<article class="energy-metric-card ${metric.tone}"><i></i><span>${metric.label}</span><strong>${metric.value}</strong><small>${metric.note}</small></article>`).join("")}</div>
+        <div class="energy-analysis-layout">
+          <article class="energy-analysis-card energy-trend-card">
+            <header><div><h4>能耗变化时间轴</h4><p>${rangeCopy[range] ?? "近 30 天"}统计项用电变化，横轴为时间，纵轴为区间用电量（kW·h）</p></div><div class="energy-range-switch" role="group" aria-label="能耗趋势时间范围">${["7d", "30d", "12m"].map((value) => `<button type="button" class="${range === value ? "active" : ""}" data-action="energy-detail-range" data-range="${value}" data-id="${escapeHtml(item.id)}">${rangeCopy[value]}</button>`).join("")}</div></header>
+            <div class="energy-trend-chart">${energyTrendSvg(points)}</div>
+          </article>
+        </div>
+      </section>`;
+  }
+
+  function openEnergyDetails(id) {
+    const item = model.energyStatistics.find((entry) => entry.id === id);
+    if (!item) return;
+    openModal({
+      title: "能源统计项详情",
+      xlarge: true,
+      body: `<div class="energy-detail-identity"><div><span>设备备注</span><strong>${escapeHtml(item.deviceRemark)}</strong></div><div><span>设备类型</span><strong>${escapeHtml(item.deviceType)}</strong></div><div><span>功能名称</span><strong>${escapeHtml(item.functionName || "—")}</strong></div></div>${renderCurrentEnergyAssignment(item)}${renderEnergyAnalysis(item)}${renderEnergyHistory(item)}`,
+      footer: `<button class="button primary" type="button" data-action="close-modal">关闭</button>`,
+    });
+  }
+
+  function openEnergyEdit(id, reset = true) {
+    const item = model.energyStatistics.find((entry) => entry.id === id);
+    if (!item) return;
+    const functions = energyFunctionsForItem(item);
+    if (item.deviceType === "电表" && functions.length) {
+      if (reset || !state.energyClassification.editDraft || state.energyClassification.editDraft.itemId !== id) {
+        state.energyClassification.editDraft = createEnergyEditDraft(item);
+      }
+      const draft = state.energyClassification.editDraft;
+      openModal({
+        title: "编辑能源统计分类",
+        xlarge: true,
+        body: renderEnergyEditContent(item, draft),
+        footer: `<button class="button" type="button" data-action="close-modal">取消</button><button class="button primary" type="button" data-action="save-energy-meter-edit" data-id="${item.id}">${icon("save")}保存并生效</button>`,
+      });
+      return;
+    }
+    const types = model.energyTypes.filter((entry) => entry.enabled).map((entry) => entry.name);
+    openModal({
+      title: "编辑能源统计分类",
+      large: true,
+      body: `<div class="energy-edit-source"><span>来源对象</span><strong>${escapeHtml(item.deviceRemark)} / ${escapeHtml(item.functionName)} / ${escapeHtml(item.functionType)}</strong></div><div class="energy-edit-grid"><div class="energy-region-field"><span>统计区域</span>${renderEnergyAreaPicker({ value: item.statisticsArea, context: "edit" })}<input id="energyEditArea" type="hidden" value="${escapeHtml(item.statisticsArea)}"></div><label><span>用电类型</span><select id="energyEditUsage">${types.map((type) => `<option value="${escapeHtml(type)}"${item.usageType === type ? " selected" : ""}>${escapeHtml(type)}</option>`).join("")}</select></label></div>`,
+      footer: `<button class="button" type="button" data-action="close-modal">取消</button><button class="button primary" type="button" data-action="save-energy-edit" data-id="${item.id}">${icon("save")}保存</button>`,
+    });
+  }
+
+  function openEnergyTypeManager() {
+    const referencedTypes = new Set([
+      ...model.energyStatistics.map((item) => item.usageType),
+      ...(model.energyClassificationHistory ?? []).map((item) => item.usageType),
+    ]);
+    openModal({
+      title: "用电类型管理",
+      large: true,
+      body: `<div class="energy-type-toolbar"><label><span>新增自定义类型</span><input id="newEnergyTypeName" maxlength="12" placeholder="例如：充电桩" /></label><button class="button primary" type="button" data-action="add-energy-type">${icon("plus")}添加</button></div><div class="energy-type-list">${model.energyTypes.map((type) => {
+        const referenced = referencedTypes.has(type.name);
+        return `<div class="energy-type-row"><span class="energy-type-name"><strong>${escapeHtml(type.name)}</strong><small>${type.builtIn ? "系统预置" : "自定义"}</small></span><em>${referenced ? "引用中，不可删除" : "未引用"}</em><button class="energy-type-switch${type.enabled ? " active" : ""}" type="button" role="switch" aria-checked="${type.enabled}" aria-label="${escapeHtml(type.name)}当前已${type.enabled ? "启用" : "禁用"}，点击${type.enabled ? "禁用" : "启用"}" data-action="toggle-energy-type" data-id="${escapeHtml(type.id)}" title="点击${type.enabled ? "禁用" : "启用"}"></button><span class="energy-type-actions"><button class="action-link" type="button" data-action="edit-energy-type" data-id="${escapeHtml(type.id)}">编辑</button><button class="action-link danger" type="button" data-action="delete-energy-type" data-id="${escapeHtml(type.id)}"${referenced ? ` disabled title="引用中的用电类型不可删除"` : ""}>删除</button></span></div>`;
+      }).join("")}</div><div class="energy-pending-note">类型使用稳定标识。已被统计项引用的类型不能直接删除，应先迁移统计项或禁用类型。</div>`,
+    });
+  }
+
+  function openEnergyTypeEdit(id) {
+    const type = model.energyTypes.find((item) => item.id === id);
+    if (!type) return;
+    openModal({
+      title: "编辑用电类型",
+      body: `<label class="energy-type-edit-field"><span>类型名称</span><input id="energyTypeEditName" maxlength="12" value="${escapeHtml(type.name)}" autocomplete="off" /></label>`,
+      footer: `<button class="button" type="button" data-action="manage-energy-types">取消</button><button class="button primary" type="button" data-action="save-energy-type" data-id="${escapeHtml(type.id)}">保存</button>`,
+    });
+  }
+
+  function openEnergyTypeDelete(id) {
+    const type = model.energyTypes.find((item) => item.id === id);
+    if (!type) return;
+    const referenced = model.energyStatistics.some((item) => item.usageType === type.name)
+      || (model.energyClassificationHistory ?? []).some((item) => item.usageType === type.name);
+    if (referenced) {
+      showToast(`“${type.name}”正在被引用，不能删除`, "warning");
+      return;
+    }
+    openModal({
+      title: "删除用电类型",
+      body: `<div class="confirm-message">确定删除用电类型“${escapeHtml(type.name)}”吗？删除后不再出现在分类选项中。</div>`,
+      footer: `<button class="button" type="button" data-action="manage-energy-types">取消</button><button class="button danger" type="button" data-action="confirm-delete-energy-type" data-id="${escapeHtml(type.id)}">删除</button>`,
+    });
+  }
+
   function renderPlaceholderPage(page) {
     return `
       <section class="placeholder-page">
@@ -872,6 +2041,8 @@
       large: true,
       body: `
         <ol class="rules-list">
+          <li><strong>本次首页 Demo：</strong>按用户提供的页面截图保留设备总数、功能总数、功能占比和欢迎区，并用“用电概览、当月电力消耗分布、用电量变化趋势”替换原五个状态仪表。</li>
+          <li><strong>演示假设：</strong>首页能耗数值为脱敏 Mock 数据；统计月份切换、环比、同比和折线节点悬停仅用于评审信息结构与交互，不代表真实接口已经接入。</li>
           <li><strong>已确认：</strong>导航只保留组件视图，按参考截图使用页面树、页面面包屑、全开/全关和不同类型控制组件。</li>
           <li><strong>已确认：</strong>主导航保留独立“配电箱设备查询”，删除“设备功能”菜单及整个页面；旧“设备功能”和“配电箱设备列表”地址兼容进入配电箱设备查询。</li>
           <li><strong>已确认：</strong>配电箱设备查询左侧将“天府校区—楼栋—房间”区域树与该区域的现有配电箱/“未分类”并排展示；校区和楼栋节点可分别展开/收起，点击节点名称仍立即筛选右侧内容。</li>
@@ -884,6 +2055,10 @@
           <li><strong>已确认：</strong>历史记录中的“设备故障”改为“设备离线”，消息内容继续显示楼栋、房间、配电箱和 IP 地址；配电箱名称文字使用其配置颜色，不增加颜色图标。</li>
           <li><strong>待确认：</strong>外部同步协议、主键、频率、失败和延迟处理，以及停用或删除关系后的显示和恢复规则。</li>
           <li><strong>已确认：</strong>楼栋、房间、配电箱和设备 IP 信息完整时，离线消息按“[楼栋 / 房间 / 配电箱] 原消息内容 IP地址：xxx.xxx.xxx.xxx”显示；任一项缺失时直接沿用原消息，不追加定位或 IP，不显示“未配置”且不保留空层级。</li>
+          <li><strong>V3.2.0 能源统计分类：</strong>负责人为紫彤；添加向导共两步，先选择电表或空开，再设置区域与用电类型。电表在第二步同时选择整表或分相，空开不显示统计方式。</li>
+          <li><strong>已确认生命周期：</strong>分类从保存时间起生效，不回算历史；统计项不物理删除，只允许停用；统计区域允许与设备导航区域不同。</li>
+          <li><strong>分析页展示：</strong>分类过多时默认展示能耗较高的前若干项；前台固定数量仍待设计确认。</li>
+          <li><strong>待确认：</strong>两类来源的唯一标识、能耗字段和数据契约，以及采样留存、权限审计和测试安排。原型中的字段、状态和数据均为评审用 Mock。</li>
         </ol>
         <div class="rules-note">评审确认后，应将上述假设回写联合 PRD，再进入正式开发。此页面数据均为脱敏 Mock 数据，刷新页面即可恢复。</div>`,
       footer: `<button class="button" type="button" data-action="reset-demo">${icon("refresh")}恢复初始数据</button><button class="button primary" type="button" data-action="close-modal">知道了</button>`,
@@ -982,6 +2157,32 @@
 
   document.addEventListener("change", (event) => {
     const target = event.target;
+    if (target.id === "overviewPeriod") {
+      state.overview.selectedMonth = target.value;
+      render();
+      return;
+    }
+    if (target.matches("[data-energy-filter]")) {
+      const key = target.dataset.energyFilter;
+      state.energyClassification[key] = target.value;
+      state.energyClassification.abnormalOnly = false;
+      state.energyClassification.page = 1;
+      render();
+      return;
+    }
+    if (target.matches("[data-energy-assignment]")) {
+      const draft = state.energyClassification.draft;
+      if (!draft) return;
+      ensureEnergyAssignment(draft, target.dataset.target)[target.dataset.energyAssignment] = target.value;
+      return;
+    }
+    if (target.matches("[data-energy-edit-assignment]")) {
+      const draft = state.energyClassification.editDraft;
+      if (!draft) return;
+      const assignment = draft.assignments[target.dataset.target];
+      if (assignment) assignment[target.dataset.energyEditAssignment] = target.value;
+      return;
+    }
     if (target.id === "cabinetFunctionFilterField") {
       state.cabinetFunctions.filterField = target.value;
       state.cabinetFunctions.filterValue = "";
@@ -1036,6 +2237,24 @@
 
   document.addEventListener("input", (event) => {
     const target = event.target;
+    if (target.matches("[data-energy-text-filter]")) {
+      const key = target.dataset.energyTextFilter;
+      state.energyClassification[key] = target.value;
+      state.energyClassification.abnormalOnly = false;
+      state.energyClassification.page = 1;
+      window.clearTimeout(energyFilterTimer);
+      energyFilterTimer = window.setTimeout(() => {
+        render();
+        requestAnimationFrame(() => {
+          const input = document.querySelector(`[data-energy-text-filter="${key}"]`);
+          if (input) {
+            input.focus();
+            input.setSelectionRange(input.value.length, input.value.length);
+          }
+        });
+      }, 200);
+      return;
+    }
     if (target.id === "cabinetFunctionFilterInput") {
       state.cabinetFunctions.filterValue = target.value;
       state.cabinetFunctions.page = 1;
@@ -1103,6 +2322,12 @@
   });
 
   document.addEventListener("click", (event) => {
+    const clickedRegionPicker = event.target.closest("[data-energy-region-picker]");
+    document.querySelectorAll("[data-energy-region-picker].open").forEach((picker) => {
+      if (picker === clickedRegionPicker) return;
+      picker.classList.remove("open");
+      picker.querySelector(".energy-region-trigger")?.setAttribute("aria-expanded", "false");
+    });
     const pageButton = event.target.closest("[data-page]");
     if (pageButton) {
       if (pageButton.dataset.page === "navigation" && state.page === "navigation" && state.navigation.editorComponentId) {
@@ -1116,6 +2341,270 @@
     const target = event.target.closest("[data-action]");
     if (!target) return;
     const action = target.dataset.action;
+    if (action === "toggle-energy-region-picker") {
+      const picker = target.closest("[data-energy-region-picker]");
+      if (!picker) return;
+      const shouldOpen = !picker.classList.contains("open");
+      document.querySelectorAll("[data-energy-region-picker].open").forEach((item) => {
+        item.classList.remove("open");
+        item.querySelector(".energy-region-trigger")?.setAttribute("aria-expanded", "false");
+      });
+      picker.classList.toggle("open", shouldOpen);
+      target.setAttribute("aria-expanded", String(shouldOpen));
+      return;
+    }
+    if (action === "toggle-energy-region-node") {
+      const node = target.closest("[data-energy-region-node]");
+      if (!node) return;
+      const expanded = node.classList.toggle("expanded");
+      target.setAttribute("aria-expanded", String(expanded));
+      return;
+    }
+    if (action === "select-energy-region") {
+      const value = target.dataset.regionValue;
+      const context = target.dataset.regionContext;
+      if (!value || !context) return;
+      if (context === "filter") {
+        state.energyClassification.statisticsArea = value;
+        state.energyClassification.abnormalOnly = false;
+        state.energyClassification.page = 1;
+        render();
+        return;
+      }
+      if (context === "assignment") {
+        const draft = state.energyClassification.draft;
+        if (!draft) return;
+        ensureEnergyAssignment(draft, target.dataset.regionTarget).area = value;
+      }
+      if (context === "edit-assignment") {
+        const draft = state.energyClassification.editDraft;
+        if (!draft) return;
+        const assignment = draft.assignments[target.dataset.regionTarget];
+        if (assignment) assignment.area = value;
+      }
+      if (context === "edit") {
+        const input = document.getElementById("energyEditArea");
+        if (input) input.value = value;
+      }
+      const picker = target.closest("[data-energy-region-picker]");
+      if (picker) {
+        const trigger = picker.querySelector(".energy-region-trigger");
+        const triggerText = trigger?.querySelector("span");
+        if (triggerText) triggerText.textContent = value;
+        if (trigger) {
+          trigger.title = value;
+          trigger.setAttribute("aria-expanded", "false");
+        }
+        picker.querySelectorAll(".energy-region-option.selected, .energy-region-all.selected").forEach((item) => item.classList.remove("selected"));
+        target.classList.add("selected");
+        picker.classList.remove("open");
+      }
+      return;
+    }
+    if (action === "sort-energy") {
+      const view = state.energyClassification;
+      const sortKey = target.dataset.sortKey;
+      if (!sortKey) return;
+      if (view.sortKey === sortKey) view.sortDirection = view.sortDirection === "asc" ? "desc" : "asc";
+      else {
+        view.sortKey = sortKey;
+        view.sortDirection = "asc";
+      }
+      view.page = 1;
+      render();
+      return;
+    }
+    if (action === "open-energy-add") {
+      openEnergyAddModal(true);
+      return;
+    }
+    if (action === "manage-energy-types") {
+      openEnergyTypeManager();
+      return;
+    }
+    if (action === "edit-energy-type") {
+      openEnergyTypeEdit(target.dataset.id);
+      return;
+    }
+    if (action === "delete-energy-type") {
+      openEnergyTypeDelete(target.dataset.id);
+      return;
+    }
+    if (action === "toggle-energy-type") {
+      const type = model.energyTypes.find((item) => item.id === target.dataset.id);
+      if (!type) return;
+      type.enabled = !type.enabled;
+      if (!type.enabled && state.energyClassification.usageType === type.name) {
+        state.energyClassification.usageType = "all";
+        state.energyClassification.page = 1;
+      }
+      openEnergyTypeManager();
+      showToast(`已${type.enabled ? "启用" : "禁用"}用电类型“${type.name}”`, "success");
+      return;
+    }
+    if (action === "overview-trend-range") {
+      const range = target.dataset.range;
+      if (Object.hasOwn(overviewTrendRangeLabels, range)) state.overview.trendRange = range;
+      render();
+      return;
+    }
+    if (action === "energy-select-device") {
+      const draft = state.energyClassification.draft;
+      selectEnergyDraftDevice(draft, target.dataset.id);
+      openEnergyAddModal();
+      return;
+    }
+    if (action === "energy-select-mode") {
+      const draft = state.energyClassification.draft;
+      if (!draft) return;
+      if (target.dataset.mode === "整表" && (draft.lockedFunctionIds?.length ?? 0) > 0) {
+        showToast("该设备已有分相统计项，如需改为整表请在主列表中编辑", "warning");
+        return;
+      }
+      draft.mode = target.dataset.mode;
+      draft.assignments = {};
+      openEnergyAddModal();
+      return;
+    }
+    if (action === "energy-edit-select-mode") {
+      const draft = state.energyClassification.editDraft;
+      if (!draft) return;
+      draft.mode = target.dataset.mode;
+      openEnergyEdit(draft.itemId, false);
+      return;
+    }
+    if (action === "energy-toggle-function") {
+      const draft = state.energyClassification.draft;
+      const functionId = target.dataset.id;
+      if (!draft || !functionId) return;
+      if (draft.lockedFunctionIds?.includes(functionId)) return;
+      if (target.checked) {
+        if (!draft.selectedFunctionIds.includes(functionId)) draft.selectedFunctionIds.push(functionId);
+      } else {
+        draft.selectedFunctionIds = draft.selectedFunctionIds.filter((id) => id !== functionId);
+      }
+      openEnergyAddModal();
+      return;
+    }
+    if (action === "energy-step-prev") {
+      state.energyClassification.addStep = Math.max(1, state.energyClassification.addStep - 1);
+      openEnergyAddModal();
+      return;
+    }
+    if (action === "energy-step-next") {
+      const view = state.energyClassification;
+      if (!view.draft?.deviceId || !availableEnergyDevices().some((device) => device.id === view.draft.deviceId)) {
+        showToast("当前没有可添加的能源设备", "warning");
+        return;
+      }
+      view.addStep = Math.min(2, view.addStep + 1);
+      openEnergyAddModal();
+      return;
+    }
+    if (action === "save-energy-statistics") {
+      saveEnergyStatistics();
+      return;
+    }
+    if (action === "energy-details") {
+      openEnergyDetails(target.dataset.id);
+      return;
+    }
+    if (action === "energy-detail-range") {
+      state.energyClassification.detailRange = target.dataset.range || "30d";
+      openEnergyDetails(target.dataset.id);
+      return;
+    }
+    if (action === "energy-edit") {
+      openEnergyEdit(target.dataset.id);
+      return;
+    }
+    if (action === "save-energy-meter-edit") {
+      saveEnergyMeterEdit(target.dataset.id);
+      return;
+    }
+    if (action === "save-energy-edit") {
+      const item = model.energyStatistics.find((entry) => entry.id === target.dataset.id);
+      if (!item) return;
+      item.statisticsArea = document.getElementById("energyEditArea")?.value ?? item.statisticsArea;
+      item.usageType = document.getElementById("energyEditUsage")?.value ?? item.usageType;
+      item.classificationStatus = "已分类";
+      item.effectiveAt = "2026-10-29 15:10";
+      closeModal();
+      render();
+      showToast("分类已更新，从本次保存时间起生效，历史数据不回算", "success");
+      return;
+    }
+    if (action === "add-energy-type") {
+      const input = document.getElementById("newEnergyTypeName");
+      const name = input?.value.trim() ?? "";
+      if (!name) {
+        showToast("请输入用电类型名称", "warning");
+        input?.focus();
+        return;
+      }
+      if (model.energyTypes.some((type) => type.name === name)) {
+        showToast("该用电类型已存在", "warning");
+        return;
+      }
+      model.energyTypes.push({ id: `custom-${Date.now()}`, name, builtIn: false, enabled: true });
+      openEnergyTypeManager();
+      showToast(`已新增用电类型“${name}”`, "success");
+      return;
+    }
+    if (action === "save-energy-type") {
+      const type = model.energyTypes.find((item) => item.id === target.dataset.id);
+      const input = document.getElementById("energyTypeEditName");
+      const name = input?.value.trim() ?? "";
+      if (!type) return;
+      if (!name) {
+        showToast("请输入用电类型名称", "warning");
+        input?.focus();
+        return;
+      }
+      if (model.energyTypes.some((item) => item.id !== type.id && item.name === name)) {
+        showToast("该用电类型已存在", "warning");
+        input?.focus();
+        return;
+      }
+      const oldName = type.name;
+      type.name = name;
+      model.energyStatistics.forEach((item) => {
+        if (item.usageType === oldName) item.usageType = name;
+      });
+      (model.energyClassificationHistory ?? []).forEach((item) => {
+        if (item.usageType === oldName) item.usageType = name;
+      });
+      if (state.energyClassification.usageType === oldName) state.energyClassification.usageType = name;
+      openEnergyTypeManager();
+      showToast(`已将用电类型“${oldName}”修改为“${name}”`, "success");
+      return;
+    }
+    if (action === "confirm-delete-energy-type") {
+      const type = model.energyTypes.find((item) => item.id === target.dataset.id);
+      if (!type) return;
+      const referenced = model.energyStatistics.some((item) => item.usageType === type.name)
+        || (model.energyClassificationHistory ?? []).some((item) => item.usageType === type.name);
+      if (referenced) {
+        openEnergyTypeManager();
+        showToast(`“${type.name}”正在被引用，不能删除`, "warning");
+        return;
+      }
+      model.energyTypes = model.energyTypes.filter((item) => item.id !== type.id);
+      if (state.energyClassification.usageType === type.name) {
+        state.energyClassification.usageType = "all";
+        state.energyClassification.page = 1;
+      }
+      openEnergyTypeManager();
+      showToast(`已删除用电类型“${type.name}”`, "success");
+      return;
+    }
+    if (action === "set-energy-summary-filter") {
+      const view = state.energyClassification;
+      Object.assign(view, { deviceRemark: "", deviceType: "all", protocol: "all", deviceModel: "", mode: "all", functionName: "", usageType: "all", statisticsArea: "all", dataStatus: "all", abnormalOnly: false, page: 1 });
+      if (target.dataset.filter === "abnormal") view.abnormalOnly = true;
+      render();
+      return;
+    }
     if (action === "set-location") {
       if (target.dataset.scope === "navigation") {
         state.navigation.selectedLocation = target.dataset.location;
@@ -1372,6 +2861,7 @@
     }
     if (action === "reset-demo") {
       model = window.GVP_DEMO_DATA.create();
+      state.overview.selectedMonth = "2026-10";
       state.devices.selected.clear();
       state.cabinetFunctions.selectedAreaId = "all";
       state.cabinetFunctions.selectedCabinetId = "cab-001";
@@ -1382,6 +2872,7 @@
       state.cabinetFunctions.pageSize = 10;
       state.cabinetFunctions.selected.clear();
       state.navigation.editorComponentId = null;
+      Object.assign(state.energyClassification, { deviceRemark: "", deviceType: "all", protocol: "all", deviceModel: "", mode: "all", functionName: "", usageType: "all", statisticsArea: "all", dataStatus: "all", abnormalOnly: false, sortKey: null, sortDirection: "asc", page: 1, pageSize: 10, addStep: 1, draft: null });
       closeModal();
       render();
       showToast("已恢复 Demo 初始数据", "success");
@@ -1409,7 +2900,7 @@
   window.addEventListener("hashchange", render);
 
   if (!window.location.hash) {
-    window.location.hash = "cabinet-functions";
+    window.location.hash = "overview";
   } else {
     render();
   }
