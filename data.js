@@ -260,6 +260,7 @@
         deviceType: device.deviceType,
         deviceRemark: device.remark,
         circuitLabel: device.deviceType === "电表" ? `回路 ${index + 1}` : "单回路",
+        phase: device.deviceType === "电表" ? ["A相", "B相", "C相"][index % 3] : "—",
         area: existingAssignment?.statisticsArea ?? "",
         usageType: existingAssignment?.usageType ?? "",
       };

@@ -1333,11 +1333,12 @@
             <td class="checkbox-cell"><input type="checkbox" aria-label="选择${escapeHtml(item.deviceRemark)}${escapeHtml(item.circuitLabel)}" data-action="select-energy-assignment" data-id="${escapeHtml(item.id)}"${view.selected.has(item.id) ? " checked" : ""}></td>
             <td><span class="energy-device-kind ${item.deviceType === "电表" ? "meter" : "breaker"}">${escapeHtml(item.deviceType)}</span></td>
             <td><div class="energy-assignment-device"><strong>${escapeHtml(item.deviceRemark)}</strong><span>${escapeHtml(item.circuitLabel)}</span></div></td>
+            <td>${escapeHtml(item.phase || "—")}</td>
             <td>${item.area ? escapeHtml(item.area) : `<span class="energy-unassigned">未分配</span>`}</td>
             <td>${item.usageType ? escapeHtml(item.usageType) : `<span class="energy-unassigned">未分配</span>`}</td>
             <td class="action-cell"><button class="action-link" type="button" data-action="energy-assignment-details" data-id="${escapeHtml(item.id)}">详情</button><button class="action-link" type="button" data-action="assign-energy-row" data-id="${escapeHtml(item.id)}">分配</button></td>
           </tr>`).join("")
-      : `<tr><td colspan="6"><div class="empty-state"><div><strong>没有匹配的数据</strong>请调整筛选条件</div></div></td></tr>`;
+      : `<tr><td colspan="7"><div class="empty-state"><div><strong>没有匹配的数据</strong>请调整筛选条件</div></div></td></tr>`;
 
     return `
       <section class="page device-reference-page energy-reference-page energy-assignment-page">
@@ -1356,8 +1357,8 @@
           </div>
           <div class="table-wrap device-reference-table-wrap energy-assignment-table-wrap">
             <table class="data-table energy-assignment-table">
-              <colgroup><col style="width:52px"><col style="width:120px"><col style="width:280px"><col style="width:330px"><col style="width:170px"><col style="width:140px"></colgroup>
-              <thead><tr><th class="checkbox-cell"><input type="checkbox" aria-label="选择当前页全部回路" data-action="select-all-energy-assignment"${allSelected ? " checked" : ""}${partiallySelected ? ` data-indeterminate="true"` : ""}></th><th>设备类型</th><th>设备备注</th><th>区域</th><th>用电类型</th><th>操作</th></tr></thead>
+              <colgroup><col style="width:52px"><col style="width:120px"><col style="width:260px"><col style="width:100px"><col style="width:300px"><col style="width:160px"><col style="width:140px"></colgroup>
+              <thead><tr><th class="checkbox-cell"><input type="checkbox" aria-label="选择当前页全部回路" data-action="select-all-energy-assignment"${allSelected ? " checked" : ""}${partiallySelected ? ` data-indeterminate="true"` : ""}></th><th>设备类型</th><th>设备备注</th><th>分相</th><th>区域</th><th>用电类型</th><th>操作</th></tr></thead>
               <tbody>${rows}</tbody>
             </table>
           </div>
@@ -1387,7 +1388,7 @@
       sourceDevice: device?.deviceName ?? statistic?.sourceDevice ?? "—",
       circuit: func?.circuit ?? statistic?.circuit ?? "—",
       mode: row.deviceType === "电表" ? "分相" : "回路",
-      phase: "—",
+      phase: row.phase ?? "—",
       functionName: func?.name ?? statistic?.functionName ?? "—",
       functionType: func?.functionType ?? statistic?.functionType ?? "—",
       navigationArea: device?.navigationArea ?? statistic?.navigationArea ?? "—",
@@ -1401,6 +1402,7 @@
       dataStatus: statistic?.dataStatus ?? (device?.status === "online" ? "待取数" : "数据中断"),
       enabled: assigned,
       effectiveAt: assigned ? (statistic?.effectiveAt && statistic.effectiveAt !== "—" ? statistic.effectiveAt : energyDemoEffectiveAt) : "—",
+      detailContext: "energy-assignment",
     };
   }
 
@@ -1983,11 +1985,20 @@
     return closedRows.sort((left, right) => String(right.effectiveFrom).localeCompare(String(left.effectiveFrom), "zh-CN"));
   }
 
+  function energyDetailField(item) {
+    const usesPhase = item.detailContext === "energy-assignment";
+    return {
+      label: usesPhase ? "分相" : "功能名称",
+      value: usesPhase ? (item.phase || "—") : (item.functionName || "—"),
+    };
+  }
+
   function renderCurrentEnergyAssignment(item) {
     const effective = item.effectiveAt && item.effectiveAt !== "—";
     const energyValue = Number.isFinite(item.cumulativeEnergy) ? `${energyMeasurement(item.cumulativeEnergy)} kW·h` : "--";
     const currentValue = Number.isFinite(item.currentAmpere) ? `${energyMeasurement(item.currentAmpere)} A` : "--";
     const voltageValue = Number.isFinite(item.voltage) ? `${energyMeasurement(item.voltage)} V` : "--";
+    const detailField = energyDetailField(item);
     return `
       <section class="energy-current-card">
         <header>
@@ -1997,7 +2008,7 @@
         </header>
         <div class="energy-current-grid">
           <div><span>统计模式</span><strong>${escapeHtml(item.mode)}</strong></div>
-          <div><span>功能名称</span><strong>${escapeHtml(item.functionName || "—")}</strong></div>
+          <div><span>${detailField.label}</span><strong>${escapeHtml(detailField.value)}</strong></div>
           <div><span>统计区域</span><strong>${escapeHtml(item.statisticsArea || "—")}</strong></div>
           <div><span>用电类型</span><strong>${escapeHtml(item.usageType || "—")}</strong></div>
           <div class="wide"><span>生效区间</span><strong>${effective ? `${escapeHtml(item.effectiveAt)} 至今` : "—"}</strong></div>
@@ -2096,10 +2107,11 @@
   function openEnergyDetails(id) {
     const item = model.energyStatistics.find((entry) => entry.id === id) ?? energyAssignmentDetailItem(id);
     if (!item) return;
+    const detailField = energyDetailField(item);
     openModal({
       title: "能源统计项详情",
       xlarge: true,
-      body: `<div class="energy-detail-identity"><div><span>设备备注</span><strong>${escapeHtml(item.deviceRemark)}</strong></div><div><span>设备类型</span><strong>${escapeHtml(item.deviceType)}</strong></div><div><span>功能名称</span><strong>${escapeHtml(item.functionName || "—")}</strong></div></div>${renderCurrentEnergyAssignment(item)}${renderEnergyAnalysis(item)}${renderEnergyHistory(item)}`,
+      body: `<div class="energy-detail-identity"><div><span>设备备注</span><strong>${escapeHtml(item.deviceRemark)}</strong></div><div><span>设备类型</span><strong>${escapeHtml(item.deviceType)}</strong></div><div><span>${detailField.label}</span><strong>${escapeHtml(detailField.value)}</strong></div></div>${renderCurrentEnergyAssignment(item)}${renderEnergyAnalysis(item)}${renderEnergyHistory(item)}`,
       footer: `<button class="button primary" type="button" data-action="close-modal">关闭</button>`,
     });
   }

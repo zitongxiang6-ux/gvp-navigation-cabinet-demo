@@ -5,7 +5,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $demoRoot = (Resolve-Path -LiteralPath $PSScriptRoot).Path
-$demoBuild = '20261104-energy-assignment-type-manager-v31'
+$demoBuild = '20261106-energy-assignment-phase-v32'
 $demoUrl = "http://127.0.0.1:$Port/?v=$demoBuild#overview"
 
 function Test-DemoAvailable {
