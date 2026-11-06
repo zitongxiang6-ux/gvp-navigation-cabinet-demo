@@ -1988,6 +1988,7 @@
   function energyDetailField(item) {
     const usesPhase = item.detailContext === "energy-assignment";
     return {
+      simplified: usesPhase,
       label: usesPhase ? "分相" : "功能名称",
       value: usesPhase ? (item.phase || "—") : (item.functionName || "—"),
     };
@@ -1999,15 +2000,16 @@
     const currentValue = Number.isFinite(item.currentAmpere) ? `${energyMeasurement(item.currentAmpere)} A` : "--";
     const voltageValue = Number.isFinite(item.voltage) ? `${energyMeasurement(item.voltage)} V` : "--";
     const detailField = energyDetailField(item);
+    const currentScopeCopy = detailField.simplified ? "以下区域、用电类型为当前统计口径。" : "以下区域、用电类型及统计方式为当前统计口径。";
     return `
       <section class="energy-current-card">
         <header>
-          <div><span class="energy-current-status${effective ? "" : " inactive"}">${effective ? "当前生效" : "尚未生效"}</span><h3>当前能耗归属</h3><p>以下区域、用电类型及统计方式为当前统计口径。</p></div>
+          <div><span class="energy-current-status${effective ? "" : " inactive"}">${effective ? "当前生效" : "尚未生效"}</span><h3>当前能耗归属</h3><p>${currentScopeCopy}</p></div>
           <div class="energy-current-live-metrics"><div><span>电流</span><strong>${currentValue}</strong></div><div><span>电压</span><strong>${voltageValue}</strong></div></div>
           <div class="energy-current-total"><span>累计能耗</span><strong>${energyValue}</strong></div>
         </header>
-        <div class="energy-current-grid">
-          <div><span>统计模式</span><strong>${escapeHtml(item.mode)}</strong></div>
+        <div class="energy-current-grid${detailField.simplified ? " simplified" : ""}">
+          ${detailField.simplified ? "" : `<div><span>统计模式</span><strong>${escapeHtml(item.mode)}</strong></div>`}
           <div><span>${detailField.label}</span><strong>${escapeHtml(detailField.value)}</strong></div>
           <div><span>统计区域</span><strong>${escapeHtml(item.statisticsArea || "—")}</strong></div>
           <div><span>用电类型</span><strong>${escapeHtml(item.usageType || "—")}</strong></div>
@@ -2111,7 +2113,7 @@
     openModal({
       title: "能源统计项详情",
       xlarge: true,
-      body: `<div class="energy-detail-identity"><div><span>设备备注</span><strong>${escapeHtml(item.deviceRemark)}</strong></div><div><span>设备类型</span><strong>${escapeHtml(item.deviceType)}</strong></div><div><span>${detailField.label}</span><strong>${escapeHtml(detailField.value)}</strong></div></div>${renderCurrentEnergyAssignment(item)}${renderEnergyAnalysis(item)}${renderEnergyHistory(item)}`,
+      body: `<div class="energy-detail-identity${detailField.simplified ? " simplified" : ""}"><div><span>设备备注</span><strong>${escapeHtml(item.deviceRemark)}</strong></div>${detailField.simplified ? "" : `<div><span>设备类型</span><strong>${escapeHtml(item.deviceType)}</strong></div>`}<div><span>${detailField.label}</span><strong>${escapeHtml(detailField.value)}</strong></div></div>${renderCurrentEnergyAssignment(item)}${renderEnergyAnalysis(item)}${renderEnergyHistory(item)}`,
       footer: `<button class="button primary" type="button" data-action="close-modal">关闭</button>`,
     });
   }

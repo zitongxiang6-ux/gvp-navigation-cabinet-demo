@@ -6599,6 +6599,10 @@ textarea.form-control {
   background: linear-gradient(135deg, #fbf8ff 0%, #f7f9ff 100%);
 }
 
+.energy-detail-identity.simplified {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .energy-detail-identity > div {
   display: grid;
   min-height: 62px;
@@ -6731,6 +6735,10 @@ textarea.form-control {
   display: grid;
   grid-template-columns: .7fr 1.1fr 1.25fr .8fr 1.45fr;
   background: rgb(255 255 255 / 56%);
+}
+
+.energy-current-grid.simplified {
+  grid-template-columns: 1.1fr 1.25fr .8fr 1.45fr;
 }
 
 .energy-current-grid > div {
@@ -6983,10 +6991,12 @@ textarea.form-control {
 
 @media (max-width: 980px) {
   .energy-detail-identity { grid-template-columns: 1fr; }
+  .energy-detail-identity.simplified { grid-template-columns: 1fr; }
   .energy-current-card > header { flex-wrap: wrap; }
   .energy-current-live-metrics { order: 3; width: 100%; }
   .energy-metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .energy-current-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .energy-current-grid.simplified { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .energy-current-grid > div { border-bottom: 1px solid rgb(122 70 201 / 10%); }
   .energy-current-grid > div.wide { grid-column: 1 / -1; }
 }
