@@ -252,7 +252,9 @@
     const functions = energyDeviceFunctions.filter((item) => item.deviceId === device.id);
     const wholeAssignment = energyStatistics.find((item) => item.deviceId === device.id && item.mode === "整表" && item.classificationStatus !== "未分类");
     return functions.map((func, index) => {
-      const existingAssignment = energyStatistics.find((item) => item.functionId === func.id && item.classificationStatus !== "未分类") ?? wholeAssignment;
+      const directAssignment = energyStatistics.find((item) => item.functionId === func.id && item.classificationStatus !== "未分类");
+      const existingAssignment = directAssignment ?? wholeAssignment;
+      const measurementAssignment = directAssignment ?? (wholeAssignment && index === 0 ? wholeAssignment : null);
       return {
         id: `assignment-${func.id}`,
         deviceId: device.id,
@@ -263,6 +265,9 @@
         phase: device.deviceType === "电表" ? ["A相", "B相", "C相"][index % 3] : "—",
         area: existingAssignment?.statisticsArea ?? "",
         usageType: existingAssignment?.usageType ?? "",
+        currentAmpere: measurementAssignment?.currentAmpere ?? null,
+        voltage: measurementAssignment?.voltage ?? null,
+        cumulativeEnergy: measurementAssignment?.cumulativeEnergy ?? null,
       };
     });
   });

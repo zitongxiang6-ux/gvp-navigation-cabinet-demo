@@ -6065,7 +6065,7 @@ textarea.form-control {
 }
 
 .energy-assignment-table {
-  min-width: 1150px;
+  min-width: 1350px;
 }
 
 .energy-assignment-table th,
@@ -6083,7 +6083,7 @@ textarea.form-control {
 }
 
 .energy-assignment-table .action-link + .action-link {
-  margin-left: 16px;
+  margin-left: 12px;
 }
 
 .energy-assignment-device {
