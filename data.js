@@ -196,6 +196,7 @@
     { id: "energy-device-meter-13", remark: "2号楼办公分表", deviceType: "电表", status: "offline", protocol: "Modbus TCP", model: "AMC96L-E4/KC", product: "安科瑞三相电能表", sourceType: "安科瑞电表", deviceName: "安科瑞三相电表 13", navigationArea: "2号楼 / 二楼" },
     { id: "energy-device-meter-14", remark: "2号楼商业分表", deviceType: "电表", status: "online", protocol: "Modbus TCP", model: "DTSD1352", product: "安科瑞多功能电表", sourceType: "安科瑞电表", deviceName: "安科瑞三相电表 14", navigationArea: "2号楼 / 公共区" },
     { id: "energy-device-meter-15", remark: "园区充电桩电表", deviceType: "电表", status: "online", protocol: "Modbus TCP", model: "AEM96", product: "安科瑞导轨式电能表", sourceType: "安科瑞电表", deviceName: "安科瑞三相电表 15", navigationArea: "园区 / 室外" },
+    { id: "energy-device-meter-16", remark: "1号楼商铺单相电表", deviceType: "电表", meterSystem: "single", status: "online", protocol: "Modbus TCP", model: "ADL200", product: "安科瑞单相电能表", sourceType: "安科瑞电表", deviceName: "安科瑞单相电表 16", navigationArea: "1号楼 / 一楼 / 商铺" },
     { id: "energy-device-breaker-15", remark: "1号楼消防泵空开", deviceType: "空开", status: "online", protocol: "MQTT", model: "ZY-AFDD-63", product: "众源智能空开", sourceType: "众源空开", deviceName: "众源网关 A / 智能空开 15", navigationArea: "1号楼 / 公共区" },
     { id: "energy-device-breaker-16", remark: "1号楼大堂照明空开", deviceType: "空开", status: "online", protocol: "MQTT", model: "ZY-MCB-100", product: "众源智能空开", sourceType: "众源空开", deviceName: "众源网关 A / 智能空开 16", navigationArea: "1号楼 / 一楼 / 大堂" },
     { id: "energy-device-breaker-17", remark: "2号楼茶水间空开", deviceType: "空开", status: "online", protocol: "MQTT", model: "ZY-AFDD-63", product: "众源智能空开", sourceType: "众源空开", deviceName: "众源网关 B / 智能空开 17", navigationArea: "2号楼 / 二楼" },
@@ -231,6 +232,7 @@
     { id: "meter-15-function-01", deviceId: "energy-device-meter-15", name: "充电区 A", functionType: "电能", page: "园区能源管理", deviceRemark: "园区充电桩电表", deviceName: "安科瑞三相电表 15", floorNode: "园区 → 室外", circuit: "设备功能 01" },
     { id: "meter-15-function-02", deviceId: "energy-device-meter-15", name: "充电区 B", functionType: "电能", page: "园区能源管理", deviceRemark: "园区充电桩电表", deviceName: "安科瑞三相电表 15", floorNode: "园区 → 室外", circuit: "设备功能 02" },
     { id: "meter-15-function-03", deviceId: "energy-device-meter-15", name: "充电运营机房", functionType: "电能", page: "园区能源管理", deviceRemark: "园区充电桩电表", deviceName: "安科瑞三相电表 15", floorNode: "园区 → 室外", circuit: "设备功能 03" },
+    { id: "meter-16-function-01", deviceId: "energy-device-meter-16", name: "商铺照明回路", functionType: "电能", page: "1号楼能源管理", deviceRemark: "1号楼商铺单相电表", deviceName: "安科瑞单相电表 16", floorNode: "1号楼 → 一楼 → 商铺", circuit: "单相回路" },
     { id: "breaker-15-energy", deviceId: "energy-device-breaker-15", name: "正向有功电能", functionType: "电能", page: "1号楼能源管理", deviceRemark: "1号楼消防泵空开", deviceName: "众源智能空开 15", floorNode: "1号楼 → 公共区", circuit: "空开回路 15" },
     { id: "breaker-16-energy", deviceId: "energy-device-breaker-16", name: "正向有功电能", functionType: "电能", page: "1号楼能源管理", deviceRemark: "1号楼大堂照明空开", deviceName: "众源智能空开 16", floorNode: "1号楼 → 一楼 → 大堂", circuit: "空开回路 16" },
     { id: "breaker-17-energy", deviceId: "energy-device-breaker-17", name: "正向有功电能", functionType: "电能", page: "2号楼能源管理", deviceRemark: "2号楼茶水间空开", deviceName: "众源智能空开 17", floorNode: "2号楼 → 二楼", circuit: "空开回路 17" },
@@ -246,28 +248,82 @@
     { id: "energy-006", deviceId: "energy-device-breaker-09", functionId: "breaker-09-energy", name: "2号楼会议室空调", deviceRemark: "2号楼空调空开", protocol: "MQTT", deviceType: "空开", deviceModel: "ZY-MCB-100", productName: "众源智能空开", sourceType: "众源空开", sourceDevice: "众源网关 B / 智能空开 12", circuit: "空开回路 12", mode: "回路", phase: "—", functionName: "正向有功电能", functionType: "电能", navigationArea: "2号楼 / 201 设备间", statisticsArea: "2号楼 / 二楼 / 202培训室", usageType: "空调", currentAmpere: null, voltage: null, cumulativeEnergy: null, periodEnergy: null, classificationStatus: "已分类", dataStatus: "数据中断", enabled: true, effectiveAt: "2026-10-26 14:35" },
     { id: "energy-007", deviceId: "energy-device-meter-03", functionId: null, name: "1号楼备用回路", deviceRemark: "1号楼备用电表", deviceType: "电表", protocol: "Modbus TCP", deviceModel: "AMC96L-E4/KC", productName: "安科瑞三相电能表", sourceType: "安科瑞电表", sourceDevice: "安科瑞多回路电表 03", circuit: "全部设备功能", mode: "整表", phase: "—", functionName: "全部设备功能", functionType: "3 个功能点", navigationArea: "1号楼 / 公共区", statisticsArea: "1号楼 / 公共区", usageType: "其他", currentAmpere: null, voltage: null, cumulativeEnergy: null, classificationStatus: "未分类", dataStatus: "正常", enabled: false, effectiveAt: "—" },
     { id: "energy-008", deviceId: "energy-device-breaker-03", functionId: "breaker-03-energy", name: "室外景观回路", deviceRemark: "室外景观空开", deviceType: "空开", protocol: "MQTT", deviceModel: "ZY-AFDD-63", productName: "众源智能空开", sourceType: "众源空开", sourceDevice: "众源网关 C / 智能空开 03", circuit: "空开回路 03", mode: "回路", phase: "—", functionName: "正向有功电能", functionType: "电能", navigationArea: "园区 / 室外", statisticsArea: "园区 / 室外", usageType: "照明", currentAmpere: null, voltage: null, cumulativeEnergy: null, classificationStatus: "已分类", dataStatus: "来源失效", enabled: false, effectiveAt: "2026-10-24 10:02" },
+    { id: "energy-009", deviceId: "energy-device-meter-16", functionId: "meter-16-function-01", name: "1号楼商铺照明", deviceRemark: "1号楼商铺单相电表", deviceType: "电表", protocol: "Modbus TCP", deviceModel: "ADL200", productName: "安科瑞单相电能表", sourceType: "安科瑞电表", sourceDevice: "安科瑞单相电表 16", circuit: "单相回路", mode: "整表", phase: "单相", functionName: "商铺照明回路", functionType: "电能", navigationArea: "1号楼 / 一楼 / 商铺", statisticsArea: "1号楼 / 一楼 / 商铺", usageType: "照明", currentAmpere: 8.36, voltage: 220.8, cumulativeEnergy: 936.42, periodEnergy: 936.42, classificationStatus: "已分类", dataStatus: "正常", enabled: true, effectiveAt: "2026-11-09 09:30" },
   ];
+
+  const energyMeasurements = Object.fromEntries(energyDevices.map((device, deviceIndex) => {
+    const meterSystem = device.meterSystem ?? (device.deviceType === "电表" ? "three" : "circuit");
+    const phaseNames = meterSystem === "three" ? ["A相", "B相", "C相"] : [meterSystem === "single" ? "单相" : "回路"];
+    const unavailable = device.status !== "online";
+    const phases = phaseNames.map((phase, phaseIndex) => {
+      if (unavailable) {
+        return { phase, voltage: null, currentAmpere: null, activePower: null, reactivePower: null, powerFactor: null, activeEnergy: null, reactiveEnergy: null };
+      }
+      const voltageBase = meterSystem === "three" ? 219.6 : 220.8;
+      const voltage = Number((voltageBase + ((deviceIndex + phaseIndex * 2) % 7) * 0.42).toFixed(1));
+      const currentAmpere = Number((4.8 + ((deviceIndex * 3 + phaseIndex * 4) % 19) * 0.72).toFixed(2));
+      const powerFactor = Number((0.88 + ((deviceIndex + phaseIndex) % 8) * 0.012).toFixed(3));
+      const activePower = Number(((voltage * currentAmpere * powerFactor) / 1000).toFixed(2));
+      const reactivePower = Number((activePower * (0.23 + ((deviceIndex + phaseIndex) % 5) * 0.035)).toFixed(2));
+      const activeEnergy = Number((286.42 + deviceIndex * 97.35 + phaseIndex * 63.28).toFixed(2));
+      const reactiveEnergy = Number((activeEnergy * (0.12 + ((deviceIndex + phaseIndex) % 4) * 0.018)).toFixed(2));
+      return { phase, voltage, currentAmpere, activePower, reactivePower, powerFactor, activeEnergy, reactiveEnergy };
+    });
+    const sum = (field) => phases.every((item) => Number.isFinite(item[field]))
+      ? Number(phases.reduce((total, item) => total + item[field], 0).toFixed(2))
+      : null;
+    const totalActivePower = sum("activePower");
+    const totalReactivePower = sum("reactivePower");
+    return [device.id, {
+      meterSystem,
+      frequency: unavailable ? null : Number((49.98 + (deviceIndex % 5) * 0.01).toFixed(2)),
+      totalActivePower,
+      totalReactivePower,
+      apparentPower: Number.isFinite(totalActivePower) && Number.isFinite(totalReactivePower)
+        ? Number(Math.sqrt(totalActivePower ** 2 + totalReactivePower ** 2).toFixed(2))
+        : null,
+      totalActiveEnergy: sum("activeEnergy"),
+      totalReactiveEnergy: sum("reactiveEnergy"),
+      updatedAt: unavailable ? "2026-11-09 08:42:16" : "2026-11-09 10:36:20",
+      dataStatus: unavailable ? "数据中断" : "正常",
+      phases,
+    }];
+  }));
 
   const energyAssignmentRows = energyDevices.flatMap((device) => {
     const functions = energyDeviceFunctions.filter((item) => item.deviceId === device.id);
     const wholeAssignment = energyStatistics.find((item) => item.deviceId === device.id && item.mode === "整表" && item.classificationStatus !== "未分类");
+    const measurement = energyMeasurements[device.id];
     return functions.map((func, index) => {
       const directAssignment = energyStatistics.find((item) => item.functionId === func.id && item.classificationStatus !== "未分类");
       const existingAssignment = directAssignment ?? wholeAssignment;
-      const measurementAssignment = directAssignment ?? (wholeAssignment && index === 0 ? wholeAssignment : null);
+      const phaseMeasurement = measurement?.phases[index] ?? measurement?.phases[0] ?? {};
       return {
         id: `assignment-${func.id}`,
         deviceId: device.id,
         functionId: func.id,
         deviceType: device.deviceType,
         deviceRemark: device.remark,
-        circuitLabel: device.deviceType === "电表" ? `回路 ${index + 1}` : "单回路",
-        phase: device.deviceType === "电表" ? ["A相", "B相", "C相"][index % 3] : "—",
+        circuitLabel: measurement?.meterSystem === "three" ? `回路 ${index + 1}` : measurement?.meterSystem === "single" ? "单相回路" : "单回路",
+        phase: measurement?.meterSystem === "three" ? phaseMeasurement.phase : measurement?.meterSystem === "single" ? "单相" : "—",
+        meterSystem: measurement?.meterSystem ?? "circuit",
         area: existingAssignment?.statisticsArea ?? "",
         usageType: existingAssignment?.usageType ?? "",
-        currentAmpere: measurementAssignment?.currentAmpere ?? null,
-        voltage: measurementAssignment?.voltage ?? null,
-        cumulativeEnergy: measurementAssignment?.cumulativeEnergy ?? null,
+        voltage: phaseMeasurement.voltage ?? null,
+        currentAmpere: phaseMeasurement.currentAmpere ?? null,
+        activePower: phaseMeasurement.activePower ?? null,
+        reactivePower: phaseMeasurement.reactivePower ?? null,
+        powerFactor: phaseMeasurement.powerFactor ?? null,
+        frequency: measurement?.frequency ?? null,
+        activeEnergy: phaseMeasurement.activeEnergy ?? null,
+        reactiveEnergy: phaseMeasurement.reactiveEnergy ?? null,
+        totalActivePower: measurement?.totalActivePower ?? null,
+        totalReactivePower: measurement?.totalReactivePower ?? null,
+        apparentPower: measurement?.apparentPower ?? null,
+        totalActiveEnergy: measurement?.totalActiveEnergy ?? null,
+        totalReactiveEnergy: measurement?.totalReactiveEnergy ?? null,
+        updatedAt: measurement?.updatedAt ?? "—",
+        dataStatus: measurement?.dataStatus ?? "待取数",
       };
     });
   });
@@ -330,6 +386,7 @@
         energyDevices: clone(energyDevices),
         energyDeviceFunctions: clone(energyDeviceFunctions),
         energyStatistics: clone(energyStatistics),
+        energyMeasurements: clone(energyMeasurements),
         energyAssignmentRows: clone(energyAssignmentRows),
         energyClassificationHistory: clone(energyClassificationHistory),
         energyDetailAnalytics: clone(energyDetailAnalytics),
