@@ -186,6 +186,7 @@
 
   const energyDevices = [
     { id: "energy-device-meter-03", remark: "1号楼备用电表", deviceType: "电表", status: "online", protocol: "Modbus TCP", model: "AMC96L-E4/KC", product: "安科瑞三相电能表", sourceType: "安科瑞电表", deviceName: "安科瑞多回路电表 03", navigationArea: "1号楼 / 公共区" },
+    { id: "energy-device-meter-16", remark: "1号楼商铺单相电表", deviceType: "电表", meterSystem: "single", status: "online", protocol: "Modbus TCP", model: "ADL200", product: "安科瑞单相电能表", sourceType: "安科瑞电表", deviceName: "安科瑞单相电表 16", navigationArea: "1号楼 / 一楼 / 商铺" },
     { id: "energy-device-meter-04", remark: "A区总配电表", deviceType: "电表", status: "online", protocol: "Modbus TCP", model: "AMC96L-E4/KC", product: "安科瑞三相电能表", sourceType: "安科瑞电表", deviceName: "安科瑞三相电表 04", navigationArea: "1号楼 / 201 设备间" },
     { id: "energy-device-meter-06", remark: "B区动力电表", deviceType: "电表", status: "online", protocol: "Modbus TCP", model: "DTSD1352", product: "安科瑞多功能电表", sourceType: "安科瑞电表", deviceName: "安科瑞三相电表 06", navigationArea: "2号楼 / 201 设备间" },
     { id: "energy-device-breaker-07", remark: "1号楼电梯空开", deviceType: "空开", status: "online", protocol: "MQTT", model: "ZY-AFDD-63", product: "众源智能空开", sourceType: "众源空开", deviceName: "众源网关 A / 智能空开 07", navigationArea: "1号楼 / 201 设备间" },
@@ -196,7 +197,6 @@
     { id: "energy-device-meter-13", remark: "2号楼办公分表", deviceType: "电表", status: "offline", protocol: "Modbus TCP", model: "AMC96L-E4/KC", product: "安科瑞三相电能表", sourceType: "安科瑞电表", deviceName: "安科瑞三相电表 13", navigationArea: "2号楼 / 二楼" },
     { id: "energy-device-meter-14", remark: "2号楼商业分表", deviceType: "电表", status: "online", protocol: "Modbus TCP", model: "DTSD1352", product: "安科瑞多功能电表", sourceType: "安科瑞电表", deviceName: "安科瑞三相电表 14", navigationArea: "2号楼 / 公共区" },
     { id: "energy-device-meter-15", remark: "园区充电桩电表", deviceType: "电表", status: "online", protocol: "Modbus TCP", model: "AEM96", product: "安科瑞导轨式电能表", sourceType: "安科瑞电表", deviceName: "安科瑞三相电表 15", navigationArea: "园区 / 室外" },
-    { id: "energy-device-meter-16", remark: "1号楼商铺单相电表", deviceType: "电表", meterSystem: "single", status: "online", protocol: "Modbus TCP", model: "ADL200", product: "安科瑞单相电能表", sourceType: "安科瑞电表", deviceName: "安科瑞单相电表 16", navigationArea: "1号楼 / 一楼 / 商铺" },
     { id: "energy-device-breaker-15", remark: "1号楼消防泵空开", deviceType: "空开", status: "online", protocol: "MQTT", model: "ZY-AFDD-63", product: "众源智能空开", sourceType: "众源空开", deviceName: "众源网关 A / 智能空开 15", navigationArea: "1号楼 / 公共区" },
     { id: "energy-device-breaker-16", remark: "1号楼大堂照明空开", deviceType: "空开", status: "online", protocol: "MQTT", model: "ZY-MCB-100", product: "众源智能空开", sourceType: "众源空开", deviceName: "众源网关 A / 智能空开 16", navigationArea: "1号楼 / 一楼 / 大堂" },
     { id: "energy-device-breaker-17", remark: "2号楼茶水间空开", deviceType: "空开", status: "online", protocol: "MQTT", model: "ZY-AFDD-63", product: "众源智能空开", sourceType: "众源空开", deviceName: "众源网关 B / 智能空开 17", navigationArea: "2号楼 / 二楼" },

@@ -6074,17 +6074,7 @@ textarea.form-control {
   height: 52px;
 }
 
-.energy-assignment-table .energy-assignment-group-head th {
-  height: 34px;
-  color: #777b8e;
-  background: #f8f7fb;
-  border-bottom-color: #ece9f2;
-  font-size: 11px;
-  font-weight: 600;
-  text-align: center;
-}
-
-.energy-assignment-table thead tr:nth-child(2) th {
+.energy-assignment-table thead th {
   height: 46px;
   white-space: nowrap;
 }
@@ -6124,7 +6114,7 @@ textarea.form-control {
 
 .energy-assignment-table thead .energy-sticky-action {
   z-index: 5;
-  background: #f8f7fb;
+  background: #fff;
 }
 
 .energy-assignment-table tbody tr:nth-child(odd) .action-cell {
