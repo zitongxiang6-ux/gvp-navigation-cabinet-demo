@@ -11,11 +11,11 @@
       content="GVP 首页用电分析、能源统计分类、导航组件视图、配电箱设备查询、设备管理与历史记录交互 Demo"
     />
     <meta name="gvp-demo-id" content="REQ-2026-001-004-navigation-cabinet" />
-    <meta name="gvp-demo-build" content="20261106-energy-assignment-measurement-split-v34" />
+    <meta name="gvp-demo-build" content="20261109-energy-classification-entry-switch-v35" />
     <title>GVP V3.2.0 评审 Demo</title>
-    <link rel="stylesheet" href="./styles.css?v=20261106-energy-assignment-measurement-split-v34" />
-    <script src="./data.js?v=20261106-energy-assignment-measurement-split-v34" defer></script>
-    <script src="./app.js?v=20261106-energy-assignment-measurement-split-v34" defer></script>
+    <link rel="stylesheet" href="./styles.css?v=20261109-energy-classification-entry-switch-v35" />
+    <script src="./data.js?v=20261109-energy-classification-entry-switch-v35" defer></script>
+    <script src="./app.js?v=20261109-energy-classification-entry-switch-v35" defer></script>
   </head>
   <body>
     <svg class="svg-sprite" aria-hidden="true">
@@ -124,10 +124,11 @@
             <button class="side-nav-item" type="button" data-page="devices" aria-label="设备管理">
               <svg><use href="#i-device"></use></svg>
             </button>
-            <button class="side-nav-item" type="button" data-page="energy-classification" aria-label="能源统计分类" title="能源统计分类">
+            <!-- 原能源统计分类入口暂时隐藏，页面、路由和实现代码继续保留。 -->
+            <button class="side-nav-item is-temporarily-hidden" type="button" data-page="energy-classification" aria-label="能源统计分类（原页面）" title="能源统计分类（原页面）">
               <svg><use href="#i-manage"></use></svg>
             </button>
-            <button class="side-nav-item" type="button" data-page="energy-assignment" aria-label="能源分类分配（简化版）" title="能源分类分配（简化版）">
+            <button class="side-nav-item" type="button" data-page="energy-assignment" aria-label="能源统计分类" title="能源统计分类">
               <svg><use href="#i-list"></use></svg>
             </button>
           </nav>

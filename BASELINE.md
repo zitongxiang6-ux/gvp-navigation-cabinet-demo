@@ -1,7 +1,7 @@
 # GVP 当前 Demo 迭代基线
 
 - 知识状态：当前评审 Demo 基线
-- 最近核验：2026-11-06
+- 最近核验：2026-11-09
 - 对应需求：REQ-2026-001、REQ-2026-002、REQ-2026-003、REQ-2026-004、V3.2.0 能源统计分类
 - 对应 PRD：`../../requirements/prd/REQ-2026-001-004-导航与配电箱增强-PRD-V1.12-20260831.docx`（当前评审口径）
 - 唯一迭代目录：`workspace/demo/REQ-2026-001-004-gvp-navigation-cabinet/`
@@ -11,7 +11,7 @@
 1. 用户继续修改这组需求的 Demo 时，默认直接编辑本目录，不创建同名、日期版或“final”平行目录。
 2. 修改前先读取本文件、`README.md`、最新 PRD 和 `context/ui-design-guidelines.md`。
 3. 评审结论发生变化时，先更新最新 PRD 或需求记录，再同步 Demo；不得仅凭 Demo 把交互写成已发布事实。
-4. 左侧当前显示 `#overview`、`#cabinet-functions`、`#history`、`#devices`、`#energy-classification`、`#energy-assignment`，默认进入 `#overview`；`#navigation` 入口继续隐藏，但路由、页面与实现代码必须保留。“设备功能”菜单、页面与专属实现已删除，旧 `#device-functions` 和 `#cabinet-devices` 地址兼容跳转到当前【配电箱设备查询】页面 `#cabinet-functions`。
+4. 左侧当前显示 `#overview`、`#cabinet-functions`、`#history`、`#devices`、`#energy-assignment`，其中 `#energy-assignment` 的可见名称为【能源统计分类】；`#navigation` 与原能源统计分类 `#energy-classification` 的入口继续隐藏，但路由、页面与实现代码必须保留。默认进入 `#overview`。“设备功能”菜单、页面与专属实现已删除，旧 `#device-functions` 和 `#cabinet-devices` 地址兼容跳转到当前【配电箱设备查询】页面 `#cabinet-functions`。
 5. 修改静态资源后同步更新 `index.html` 和 `start-demo.ps1` 中的构建标识，避免浏览器继续使用旧缓存。
 6. 每次迭代同步更新 `README.md` 的覆盖范围、假设和验证记录；新增、删除或重命名文件时同步更新上级 `AGENTS.md` 索引。
 7. 交付前至少验证 JavaScript 语法、PowerShell 启停脚本和本地 HTTP 资源；涉及关键交互时进行真实点击或浏览器回归。
@@ -24,12 +24,13 @@
 .\start-demo.ps1 -OpenBrowser
 ```
 
-默认地址：`http://127.0.0.1:4173/?v=20261106-energy-assignment-measurement-split-v34#overview`
+默认地址：`http://127.0.0.1:4173/?v=20261109-energy-classification-entry-switch-v35#overview`
 
 ## 边界
 
 - 这是脱敏 Mock 数据驱动的评审 Demo，不连接生产接口。
 - Demo 展示产品要求和评审假设，不证明功能已经开发、测试、验收或发布。
+- 2026-11-09 用户确认：将原【能源分类分配（简化版）】入口及页面显示名称改为【能源统计分类】，继续使用 `#energy-assignment` 页面内容；原【能源统计分类】的 `#energy-classification` 入口暂时隐藏，但页面、路由和全部实现继续保留，后续需要时恢复入口。
 - 2026-11-06 用户继续确认：【能源分类分配（简化版）】列表在“分配用电类型”右侧新增可排序的电流、电压、累计能耗三列；列表字段明确为“分配区域”“分配用电类型”，行内与批量操作均拆成两个独立入口，分别只修改对应字段。所有【能源统计项详情】删除底部“历史能耗”整个区块；【用电类型管理】删除“系统预置/自定义”标签及底部类型标识说明。本条覆盖此前 Demo 中继续展示历史能耗和区域、类型合并分配的展示口径。
 - 2026-11-06 用户继续确认：从【能源分类分配（简化版）】打开详情时，顶部身份信息删除“设备类型”整块，当前能耗归属删除“统计模式”整块；保留设备备注、分相、统计区域、用电类型和生效区间。原【能源统计分类】详情继续保留设备类型和统计模式。
 - 2026-11-06 用户确认【能源分类分配（简化版）】列表在设备备注与区域之间新增“分相”列；三相电表的三行按 A相、B相、C相填充，空开显示“—”。从简化页打开详情时，身份信息和当前能耗归属中的“功能名称”均改为“分相”并显示该行相位；原【能源统计分类】列表及详情继续显示真实功能名称，不随简化页变化。

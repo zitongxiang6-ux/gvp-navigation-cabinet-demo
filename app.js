@@ -92,7 +92,7 @@
     history: "历史记录",
     devices: "设备管理",
     "energy-classification": "能源统计分类",
-    "energy-assignment": "能源分类分配（简化版）",
+    "energy-assignment": "能源统计分类",
   };
 
   function getPageFromHash() {
@@ -1368,7 +1368,7 @@
       <section class="page device-reference-page energy-reference-page energy-assignment-page">
         <div class="page-panel no-padding device-reference-panel energy-reference-panel">
           <div class="device-reference-toolbar energy-reference-toolbar energy-assignment-toolbar">
-            <div class="device-reference-filters energy-reference-filters energy-assignment-filters" aria-label="能源分类分配筛选">
+            <div class="device-reference-filters energy-reference-filters energy-assignment-filters" aria-label="能源统计分类筛选">
               ${renderEnergyAreaPicker({ value: view.filterArea, context: "simple-filter", allowAll: true, compact: true, placeholder: "筛选区域", allLabel: "全部区域" })}
               <label class="reference-search energy-filter-search">${icon("search")}<input type="search" value="${escapeHtml(view.deviceRemark)}" placeholder="设备备注" autocomplete="off" aria-label="设备备注" data-energy-assignment-text-filter></label>
               <select data-energy-assignment-filter="usageType" aria-label="用电类型">${energyFilterOptions([...usageTypes, "未分配"], view.usageType, "全部用电类型")}</select>
@@ -2241,7 +2241,8 @@
           <li><strong>待确认：</strong>外部同步协议、主键、频率、失败和延迟处理，以及停用或删除关系后的显示和恢复规则。</li>
           <li><strong>已确认：</strong>楼栋、房间、配电箱和设备 IP 信息完整时，离线消息按“[楼栋 / 房间 / 配电箱] 原消息内容 IP地址：xxx.xxx.xxx.xxx”显示；任一项缺失时直接沿用原消息，不追加定位或 IP，不显示“未配置”且不保留空层级。</li>
           <li><strong>V3.2.0 能源统计分类：</strong>负责人为紫彤；添加向导共两步，先选择电表或空开，再设置区域与用电类型。电表在第二步同时选择整表或分相，空开不显示统计方式。</li>
-          <li><strong>简化方案对比页：</strong>独立入口默认加载全部电表和空开回路，电表拆分为三个回路、空开显示一个回路；仅保留筛选区域、设备备注和用电类型即时筛选，列表补充电流、电压和累计能耗，并支持单选、多选后分别分配区域或用电类型。原【能源统计分类】页面保持不变。</li>
+          <li><strong>当前能源统计分类：</strong>原【能源分类分配（简化版）】页面改名为【能源统计分类】并作为当前可见入口；默认加载全部电表和空开回路，电表拆分为三个回路、空开显示一个回路，仅保留筛选区域、设备备注和用电类型即时筛选，列表补充电流、电压和累计能耗，并支持单选、多选后分别分配区域或用电类型。</li>
+          <li><strong>原能源统计分类：</strong>主导航入口暂时隐藏，但页面、路由和全部实现继续保留，可通过 <code>#energy-classification</code> 直接访问，后续需要时可恢复入口。</li>
           <li><strong>已确认生命周期：</strong>分类从保存时间起生效，不回算历史；统计项不物理删除，只允许停用；统计区域允许与设备导航区域不同。</li>
           <li><strong>分析页展示：</strong>分类过多时默认展示能耗较高的前若干项；前台固定数量仍待设计确认。</li>
           <li><strong>待确认：</strong>两类来源的唯一标识、能耗字段和数据契约，以及采样留存、权限审计和测试安排。原型中的字段、状态和数据均为评审用 Mock。</li>
