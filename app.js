@@ -2061,11 +2061,6 @@
     const measurement = item.measurements;
     const phases = measurement?.phases ?? [];
     const updateCopy = `${item.dataStatus || "待取数"} · 数据更新时间 ${item.updatedAt || "—"}`;
-    const equivalenceNote = `
-      <div class="energy-total-equivalence">
-        <strong>累计能耗 = 总有功电能</strong>
-        <span>两者为同一数据，单位为 kWh；无功电能单独计量，不与有功电能相加。</span>
-      </div>`;
 
     if (item.meterSystem !== "three") {
       const phase = phases[0] ?? item;
@@ -2085,7 +2080,6 @@
         </section>
         <section class="energy-parameter-section energy-metering-section">
           <header><div><h3>设备电能计量</h3><p>展示设备累计表底数据。</p></div></header>
-          ${equivalenceNote}
           <div class="energy-parameter-grid compact">
             ${renderEnergyParameterCard(item.meterSystem === "single" ? "有功电能（累计能耗 / 总有功电能）" : "累计能耗（总有功电能）", item.totalActiveEnergy, "kWh")}
             ${renderEnergyParameterCard(item.meterSystem === "single" ? "无功电能（总无功电能）" : "无功电能", item.totalReactiveEnergy, "kvarh")}
@@ -2118,7 +2112,6 @@
       </section>
       <section class="energy-parameter-section energy-metering-section">
         <header><div><h3>设备电能计量</h3><p>分相值与设备上报总值同时展示。</p></div></header>
-        ${equivalenceNote}
         <div class="energy-parameter-table-wrap">
           <table class="energy-parameter-table">
             <thead><tr><th>指标</th><th>A相</th><th>B相</th><th>C相</th><th>总计</th></tr></thead>

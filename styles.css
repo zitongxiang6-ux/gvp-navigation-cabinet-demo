@@ -6958,25 +6958,6 @@ textarea.form-control {
   background: #fcfbfe;
 }
 
-.energy-total-equivalence {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
-  padding: 10px 12px;
-  color: #776887;
-  background: #f7f1ff;
-  border: 1px solid #e9dcfa;
-  border-radius: 6px;
-  font-size: 10px;
-}
-
-.energy-total-equivalence strong {
-  flex: 0 0 auto;
-  color: #6130b6;
-  font-size: 11px;
-}
-
 .energy-analysis-section {
   margin-top: 20px;
 }
@@ -7211,7 +7192,6 @@ textarea.form-control {
   .energy-current-grid > div.wide { grid-column: 1 / -1; }
   .energy-parameter-section > header { flex-direction: column; }
   .energy-parameter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .energy-total-equivalence { align-items: flex-start; flex-direction: column; }
 }
 
 .energy-detail-grid,
