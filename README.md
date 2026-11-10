@@ -18,12 +18,12 @@
 ## 在线访问
 
 - GitHub 仓库：<https://github.com/zitongxiang6-ux/gvp-navigation-cabinet-demo>
-- GitHub Pages 最新首页：<https://zitongxiang6-ux.github.io/gvp-navigation-cabinet-demo/?v=20261106-energy-assignment-detail-trim-v33#overview>
-- 能源统计分类：<https://zitongxiang6-ux.github.io/gvp-navigation-cabinet-demo/?v=20261106-energy-assignment-detail-trim-v33#energy-classification>
-- 能源分类分配（简化版）：<https://zitongxiang6-ux.github.io/gvp-navigation-cabinet-demo/?v=20261106-energy-assignment-detail-trim-v33#energy-assignment>
+- GitHub Pages 最新首页：<https://zitongxiang6-ux.github.io/gvp-navigation-cabinet-demo/?v=20261110-energy-detail-value-first-v45#overview>
+- 能源统计分类：<https://zitongxiang6-ux.github.io/gvp-navigation-cabinet-demo/?v=20261110-energy-detail-value-first-v45#energy-assignment>
+- 原能源统计分类（隐藏入口保留）：<https://zitongxiang6-ux.github.io/gvp-navigation-cabinet-demo/?v=20261110-energy-detail-value-first-v45#energy-classification>
 - 设备管理：<https://zitongxiang6-ux.github.io/gvp-navigation-cabinet-demo/#devices>
 
-在线页面当前仍为已发布的 v33；本目录 v45 调整仅完成本地 Demo，尚未发布到 GitHub Pages。两者均为脱敏 Mock 数据驱动的评审演示，不代表功能已经开发、测试、验收或发布到 GVP 正式环境。
+GitHub Pages 和本目录当前均为 v45。该页面是脱敏 Mock 数据驱动的评审演示，不代表功能已经开发、测试、验收或发布到 GVP 正式环境。
 
 旧地址 `#device-functions` 和 `#cabinet-devices` 仅用于兼容已有书签，访问后都会切换为当前【配电箱设备查询】页面 `#cabinet-functions`。
 
@@ -106,7 +106,7 @@ python -m http.server 4173 --bind 127.0.0.1 --directory "workspace\demo\REQ-2026
 
 ## 验证记录
 
-- 已在 1920×1080 的本地 Edge 中核验 v45：三相、单相和空开详情的电流、电压、累计能耗、本月用电和日均用电均按“数值在上、标题在下”展示；累计能耗卡不再包含“与 A 相/单相/当前回路有功电能相同”的小字说明。三类详情无页面级横向溢出。截图为 `../../../drafts/能源统计分类-原型-20261029/energy-detail-value-first-v45.png`，自动回归脚本为 `../../../drafts/能源统计分类-原型-20261029/verify-energy-detail-value-first-v45.mjs`。
+- 已在 1920×1080 的本地 Edge 及 GitHub Pages 中核验 v45：三相、单相和空开详情的电流、电压、累计能耗、本月用电和日均用电均按“数值在上、标题在下”展示；累计能耗卡不再包含“与 A 相/单相/当前回路有功电能相同”的小字说明。三类详情无页面级横向溢出。线上构建提交为 `b08fc1ee08dd9c38a61c1425dcc214b53167ab58`；本地截图为 `../../../drafts/能源统计分类-原型-20261029/energy-detail-value-first-v45.png`，线上截图为 `../../../drafts/能源统计分类-原型-20261029/energy-detail-value-first-v45-online.png`，自动回归脚本为 `../../../drafts/能源统计分类-原型-20261029/verify-energy-detail-value-first-v45.mjs`。
 - 已在 1920×1080 的本地 Edge 中核验 v44：空开详情显示“本月用电”“日均用电”“能耗编号时间轴”；单相详情显示“本月用电”“日均用电”“能耗变化时间轴”；三相详情继续显示“A相本月用电”“A相日均用电”“A相能耗变化时间轴”。三类详情均无页面级横向溢出。v44 已由当前 v45 覆盖；截图为 `../../../drafts/能源统计分类-原型-20261029/energy-breaker-analysis-labels-v44.png`、`energy-single-analysis-labels-v44.png`，自动回归脚本为 `../../../drafts/能源统计分类-原型-20261029/verify-energy-detail-analysis-labels-v44.mjs`。
 - 已在 1920×1080 的本地 Edge 中核验 v43：当前可见列表 4 页共 35 条数据的“设备备注”列均只展示一行设备名称，三相、单相和空开均不再显示回路等第二行小字；首屏无页面级横向溢出。v43 已由当前 v44 覆盖；截图为 `../../../drafts/能源统计分类-原型-20261029/energy-remark-single-line-v43.png`，自动回归脚本为 `../../../drafts/能源统计分类-原型-20261029/verify-energy-remark-single-line-v43.mjs`。
 - 已在 1920×1080 的本地 Edge 中核验 v42：空开详情的两个指标标题显示为“本月用电”“日均用电”，不再带“当前统计项”前缀；三相仍显示“A相本月用电/A相日均用电”，单相仍显示“单相本月用电/单相日均用电”。三类详情均无页面级横向溢出。v42 已由当前 v43 覆盖；截图为 `../../../drafts/能源统计分类-原型-20261029/energy-breaker-metric-labels-v42.png`，自动回归脚本为 `../../../drafts/能源统计分类-原型-20261029/verify-energy-breaker-metric-labels-v42.mjs`。
