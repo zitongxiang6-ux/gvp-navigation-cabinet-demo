@@ -2135,13 +2135,12 @@
     const currentScopeCopy = isThreePhaseRow ? `以下为${item.phase}当前统计归属与分相数据。` : detailField.simplified ? "以下区域、用电类型为当前统计口径。" : "以下区域、用电类型及统计方式为当前统计口径。";
     const currentTitle = isThreePhaseRow ? `${item.phase}当前能耗归属` : "当前能耗归属";
     const energyLabel = "累计能耗";
-    const energyNote = isThreePhaseRow ? `与${item.phase}有功电能相同` : item.meterSystem === "single" ? "与单相有功电能相同" : "与当前回路有功电能相同";
     return `
       <section class="energy-current-card">
         <header>
           <div>${detailField.simplified ? `<h3>${escapeHtml(currentTitle)}</h3>` : `<span class="energy-current-status${effective ? "" : " inactive"}">${effective ? "当前生效" : "尚未生效"}</span><h3>${escapeHtml(currentTitle)}</h3><p>${escapeHtml(currentScopeCopy)}</p>`}</div>
-          <div class="energy-current-live-metrics"><div><span>电流</span><strong>${currentValue}</strong></div><div><span>电压</span><strong>${voltageValue}</strong></div></div>
-          <div class="energy-current-total"><span>${escapeHtml(energyLabel)}</span><strong>${energyValue}</strong><small>${escapeHtml(energyNote)}</small></div>
+          <div class="energy-current-live-metrics"><div><strong>${currentValue}</strong><span>电流</span></div><div><strong>${voltageValue}</strong><span>电压</span></div></div>
+          <div class="energy-current-total"><strong>${energyValue}</strong><span>${escapeHtml(energyLabel)}</span></div>
         </header>
         <div class="energy-current-grid${detailField.simplified ? " simplified" : ""}">
           ${detailField.simplified ? "" : `<div><span>统计模式</span><strong>${escapeHtml(item.mode)}</strong></div><div><span>${detailField.label}</span><strong>${escapeHtml(detailField.value)}</strong></div>`}
@@ -2230,7 +2229,7 @@
     ];
     return `
       <section class="energy-analysis-section">
-        <div class="energy-metric-grid">${metrics.map((metric) => `<article class="energy-metric-card ${metric.tone}"><i></i><span>${metric.label}</span><strong>${metric.value}</strong>${metric.note ? `<small>${metric.note}</small>` : ""}</article>`).join("")}</div>
+        <div class="energy-metric-grid">${metrics.map((metric) => `<article class="energy-metric-card ${metric.tone}"><i></i><strong>${metric.value}</strong><span>${metric.label}</span>${metric.note ? `<small>${metric.note}</small>` : ""}</article>`).join("")}</div>
         <div class="energy-analysis-layout">
           <article class="energy-analysis-card energy-trend-card">
             <header><div><h4>${escapeHtml(trendTitle)}</h4><p>${rangeCopy[range] ?? "近 30 天"}${escapeHtml(analysisScope)}用电变化，横轴为时间，纵轴为区间用电量（kWh）</p></div><div class="energy-range-switch" role="group" aria-label="能耗趋势时间范围">${["7d", "30d", "12m"].map((value) => `<button type="button" class="${range === value ? "active" : ""}" data-action="energy-detail-range" data-range="${value}" data-id="${escapeHtml(item.id)}">${rangeCopy[value]}</button>`).join("")}</div></header>

@@ -6765,12 +6765,6 @@ textarea.form-control {
   letter-spacing: -.3px;
 }
 
-.energy-current-total small {
-  color: #9a8cac;
-  font-size: 9px;
-  line-height: 1.4;
-}
-
 .energy-current-grid {
   display: grid;
   grid-template-columns: .7fr 1.1fr 1.25fr .8fr 1.45fr;
