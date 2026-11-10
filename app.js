@@ -1359,7 +1359,7 @@
           <tr${view.selected.has(item.id) ? ` class="selected-row"` : ""}>
             <td class="checkbox-cell"><input type="checkbox" aria-label="选择${escapeHtml(item.deviceRemark)}${escapeHtml(item.circuitLabel)}" data-action="select-energy-assignment" data-id="${escapeHtml(item.id)}"${view.selected.has(item.id) ? " checked" : ""}></td>
             <td>${escapeHtml(energyMeterTypeLabel(item))}</td>
-            <td><div class="energy-assignment-device"><strong>${escapeHtml(item.deviceRemark)}</strong><span>${escapeHtml(item.circuitLabel)}</span></div></td>
+            <td><div class="energy-assignment-device"><strong>${escapeHtml(item.deviceRemark)}</strong></div></td>
             <td>${escapeHtml(item.phase || "—")}</td>
             <td>${item.area ? escapeHtml(item.area) : `<span class="energy-unassigned">未分配</span>`}</td>
             <td>${item.usageType ? escapeHtml(item.usageType) : `<span class="energy-unassigned">未分配</span>`}</td>

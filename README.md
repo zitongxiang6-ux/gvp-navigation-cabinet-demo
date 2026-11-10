@@ -23,7 +23,7 @@
 - 能源分类分配（简化版）：<https://zitongxiang6-ux.github.io/gvp-navigation-cabinet-demo/?v=20261106-energy-assignment-detail-trim-v33#energy-assignment>
 - 设备管理：<https://zitongxiang6-ux.github.io/gvp-navigation-cabinet-demo/#devices>
 
-在线页面当前仍为已发布的 v33；本目录 v42 调整仅完成本地 Demo，尚未发布到 GitHub Pages。两者均为脱敏 Mock 数据驱动的评审演示，不代表功能已经开发、测试、验收或发布到 GVP 正式环境。
+在线页面当前仍为已发布的 v33；本目录 v43 调整仅完成本地 Demo，尚未发布到 GitHub Pages。两者均为脱敏 Mock 数据驱动的评审演示，不代表功能已经开发、测试、验收或发布到 GVP 正式环境。
 
 旧地址 `#device-functions` 和 `#cabinet-devices` 仅用于兼容已有书签，访问后都会切换为当前【配电箱设备查询】页面 `#cabinet-functions`。
 
@@ -43,7 +43,7 @@
 python -m http.server 4173 --bind 127.0.0.1 --directory "workspace\demo\REQ-2026-001-004-gvp-navigation-cabinet"
 ```
 
-然后访问：`http://127.0.0.1:4173/?v=20261110-energy-breaker-metric-labels-v42#overview`
+然后访问：`http://127.0.0.1:4173/?v=20261110-energy-remark-single-line-v43#overview`
 
 如需关闭后台服务，在 Demo 目录执行：
 
@@ -106,7 +106,8 @@ python -m http.server 4173 --bind 127.0.0.1 --directory "workspace\demo\REQ-2026
 
 ## 验证记录
 
-- 已在 1920×1080 的本地 Edge 中核验 v42：空开详情的两个指标标题显示为“本月用电”“日均用电”，不再带“当前统计项”前缀；三相仍显示“A相本月用电/A相日均用电”，单相仍显示“单相本月用电/单相日均用电”。三类详情均无页面级横向溢出。截图为 `../../../drafts/能源统计分类-原型-20261029/energy-breaker-metric-labels-v42.png`，自动回归脚本为 `../../../drafts/能源统计分类-原型-20261029/verify-energy-breaker-metric-labels-v42.mjs`。
+- 已在 1920×1080 的本地 Edge 中核验 v43：当前可见列表 4 页共 35 条数据的“设备备注”列均只展示一行设备名称，三相、单相和空开均不再显示回路等第二行小字；首屏无页面级横向溢出。截图为 `../../../drafts/能源统计分类-原型-20261029/energy-remark-single-line-v43.png`，自动回归脚本为 `../../../drafts/能源统计分类-原型-20261029/verify-energy-remark-single-line-v43.mjs`。
+- 已在 1920×1080 的本地 Edge 中核验 v42：空开详情的两个指标标题显示为“本月用电”“日均用电”，不再带“当前统计项”前缀；三相仍显示“A相本月用电/A相日均用电”，单相仍显示“单相本月用电/单相日均用电”。三类详情均无页面级横向溢出。v42 已由当前 v43 覆盖；截图为 `../../../drafts/能源统计分类-原型-20261029/energy-breaker-metric-labels-v42.png`，自动回归脚本为 `../../../drafts/能源统计分类-原型-20261029/verify-energy-breaker-metric-labels-v42.mjs`。
 - 已在 1920×1080 的本地 Edge 中核验 v41：三相、单相和空开详情的“设备电能计量”区均已删除紫色“累计能耗 = 总有功电能”说明条，标题下方直接展示原有有功/无功电能数据，其他详情结构和数据保持不变。v41 已由当前 v42 覆盖；截图为 `../../../drafts/能源统计分类-原型-20261029/energy-metering-note-removed-v41.png`，自动回归脚本为 `../../../drafts/能源统计分类-原型-20261029/verify-energy-metering-note-removed-v41.mjs`。
 - 已在 1920×1080 的本地 Edge 中核验 v40：第一页 10 行按 3 行三相电表、3 行单相电表、4 行空开回路展示；列表和当前三类详情均删除“设备类型”，详情顶部只保留设备备注、计量类型、相别。首屏累计能耗均与有功电能一致，页面无横向溢出，三相、单相和空开详情均可正常进入。v40 已由当前 v41 覆盖；截图为 `../../../drafts/能源统计分类-原型-20261029/energy-first-page-balance-v40-list.png`、`energy-first-page-balance-v40-three-detail.png`、`energy-first-page-balance-v40-single-detail.png`、`energy-first-page-balance-v40-breaker-detail.png`，自动回归脚本为 `../../../drafts/能源统计分类-原型-20261029/verify-energy-first-page-balance-v40.mjs`。
 - 已在 1920×1080 的本地 Edge 中核验 v39：首屏同时展示“三相电表”和“单相电表”，列表以“计量类型 + 相别”区分两者，三相设备按 A/B/C 三行、单相设备按一行展示；三相 A相与单相详情顶部均显示设备备注、设备类型、计量类型、相别，当前归属仅保留分配区域和分配用电类型，已删除状态标签、辅助说明、重复相别及本月/日均用电卡底部备注。首屏 10 行累计能耗均与有功电能一致，页面无横向溢出，原隐藏页面继续可直达。v39 已由当前 v40 覆盖；截图为 `../../../drafts/能源统计分类-原型-20261029/energy-meter-type-v39-list.png`、`energy-meter-type-v39-three-detail.png`、`energy-meter-type-v39-single-detail.png`，自动回归脚本为 `../../../drafts/能源统计分类-原型-20261029/verify-energy-meter-type-v39.mjs`。
@@ -121,7 +122,7 @@ python -m http.server 4173 --bind 127.0.0.1 --directory "workspace\demo\REQ-2026
 - 已修正简化版详情：删除独立设计的详情布局，改为直接调用原【能源统计项详情】渲染逻辑；已逐项对比弹窗标题、身份信息、当前能耗归属、本月/日均用电、能耗时间轴、历史能耗表头和时间范围切换，结构与原详情一致，且分配后区域、用电类型可在原详情中即时更新。截图保存在 `../../../drafts/能源统计分类-原型-20261029/energy-assignment-reuse-detail-v30.png`，自动回归脚本为 `../../../drafts/能源统计分类-原型-20261029/verify-energy-assignment-reuse-detail-v30.mjs`。
 - 已在 1920×1080 的本地 Edge 中核验【能源分类分配（简化版）】：页面仅显示筛选区域、设备备注、用电类型三个即时筛选项；默认分页展示全部 32 条 Mock 回路中的前 10 条且无“添加”按钮；三相电表按三个回路展示三行，空开一行；单选、多选、批量分配区域与用电类型均可生效。回归同时确认原【能源统计分类】仍保留“统计区域”筛选、13 个原列表字段和“添加”按钮。截图保存在 `../../../drafts/能源统计分类-原型-20261029/energy-assignment-simple-v28.png`，自动回归脚本为 `../../../drafts/能源统计分类-原型-20261029/verify-energy-assignment-simple-v28.mjs`。
 - `data.js`、`app.js` 已通过 Node.js 语法检查；`start-demo.ps1`、`stop-demo.ps1` 已通过 PowerShell 语法检查。
-- 本地 HTTP 服务下 `index.html`、CSS 和 JavaScript 均返回 200，当前构建标识为 `20261110-energy-breaker-metric-labels-v42`。
+- 本地 HTTP 服务下 `index.html`、CSS 和 JavaScript 均返回 200，当前构建标识为 `20261110-energy-remark-single-line-v43`。
 - 已核验空开回路、电表整表、电表分相三类详情的“历史能耗”表头均只保留生效区间、来源快照、统计模式、统计区域、用电类型和设备区间能耗，不再显示“变更记录”；历史记录数量、区间顺序和能耗值保持不变。回归截图保存在 `../../../drafts/能源统计分类-原型-20261029/energy-detail-no-change-v27.png`，自动回归脚本为 `../../../drafts/能源统计分类-原型-20261029/verify-energy-detail-no-change-v27.mjs`。
 - 已核验空开编辑页删除“来源对象和设备功能不可在编辑时替换”辅助文字及“保存后生效”说明框，仅保留来源对象、统计区域和用电类型；“1号楼备用电表”编辑页改用当前整表/分相编辑结构，整表状态完整展示“备用馈线 1、备用馈线 2、备用馈线 3”三个功能点及一组共用区域、类型配置；“室外景观空开”详情不显示电表专用的统计口径说明，并展示 6 条已结束历史能耗区间。回归截图保存在 `../../../drafts/能源统计分类-原型-20261029/energy-breaker-edit-clean-v26.png`、`../../../drafts/能源统计分类-原型-20261029/energy-meter-edit-latest-v26.png`、`../../../drafts/能源统计分类-原型-20261029/energy-breaker-history-v26.png`，自动回归脚本为 `../../../drafts/能源统计分类-原型-20261029/verify-energy-edit-history-v26.mjs`。
 - 已核验“添加能源设备”默认显示 11 台候选：1 台可继续补充的部分分相电表、5 台全新电表和 5 个全新空开；候选表格可纵向滚动且页面无横向溢出。选择“园区充电桩电表”进入第二步后，完整展示“充电区 A、充电区 B、充电运营机房”三个功能点，并默认带出“园区 / 室外”。回归截图保存在 `../../../drafts/能源统计分类-原型-20261029/energy-candidate-pool-v25.png`，自动回归脚本为 `../../../drafts/能源统计分类-原型-20261029/verify-energy-candidate-pool-v25.mjs`。
