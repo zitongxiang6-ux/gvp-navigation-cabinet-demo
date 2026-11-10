@@ -316,6 +316,7 @@
         powerFactor: phaseMeasurement.powerFactor ?? null,
         frequency: measurement?.frequency ?? null,
         activeEnergy: phaseMeasurement.activeEnergy ?? null,
+        cumulativeEnergy: phaseMeasurement.activeEnergy ?? null,
         reactiveEnergy: phaseMeasurement.reactiveEnergy ?? null,
         totalActivePower: measurement?.totalActivePower ?? null,
         totalReactivePower: measurement?.totalReactivePower ?? null,

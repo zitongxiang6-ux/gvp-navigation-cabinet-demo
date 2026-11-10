@@ -6065,7 +6065,7 @@ textarea.form-control {
 }
 
 .energy-assignment-table {
-  min-width: 2050px;
+  min-width: 2180px;
   table-layout: fixed;
 }
 
@@ -6079,7 +6079,7 @@ textarea.form-control {
   white-space: nowrap;
 }
 
-.energy-assignment-table tbody td:nth-child(n + 7):nth-child(-n + 14) {
+.energy-assignment-table tbody td:nth-child(n + 7):nth-child(-n + 15) {
   color: #4c5063;
   font-variant-numeric: tabular-nums;
   text-align: right;
@@ -6783,7 +6783,7 @@ textarea.form-control {
 }
 
 .energy-current-grid.simplified {
-  grid-template-columns: 1.1fr 1.25fr .8fr 1.45fr;
+  grid-template-columns: .8fr 1.35fr 1fr;
 }
 
 .energy-current-grid > div {
