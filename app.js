@@ -1245,6 +1245,12 @@
     return `<button class="sort-button${active ? ` active ${direction}` : ""}" type="button" data-action="sort-energy-assignment" data-sort-key="${escapeHtml(key)}" aria-label="按${escapeHtml(label)}${active && direction === "asc" ? "降序" : "升序"}排列">${escapeHtml(label)}<span class="sort-glyph" aria-hidden="true"><i class="sort-glyph-up"></i><i class="sort-glyph-down"></i></span></button>`;
   }
 
+  function energyMeterTypeLabel(item) {
+    if (item.meterSystem === "single") return "单相电表";
+    if (item.meterSystem === "three") return "三相电表";
+    return "空开回路";
+  }
+
   function energyStatusPill(value, kind = "neutral") {
     const className = kind === "data" ? (value === "正常" ? "success" : value === "待取数" ? "warning" : "danger") : value === "已分类" ? "success" : value === "部分分类" ? "warning" : "disabled";
     return `<span class="status-pill ${className}">${escapeHtml(value)}</span>`;
@@ -1353,6 +1359,7 @@
           <tr${view.selected.has(item.id) ? ` class="selected-row"` : ""}>
             <td class="checkbox-cell"><input type="checkbox" aria-label="选择${escapeHtml(item.deviceRemark)}${escapeHtml(item.circuitLabel)}" data-action="select-energy-assignment" data-id="${escapeHtml(item.id)}"${view.selected.has(item.id) ? " checked" : ""}></td>
             <td><span class="energy-device-kind ${item.deviceType === "电表" ? "meter" : "breaker"}">${escapeHtml(item.deviceType)}</span></td>
+            <td>${escapeHtml(energyMeterTypeLabel(item))}</td>
             <td><div class="energy-assignment-device"><strong>${escapeHtml(item.deviceRemark)}</strong><span>${escapeHtml(item.circuitLabel)}</span></div></td>
             <td>${escapeHtml(item.phase || "—")}</td>
             <td>${item.area ? escapeHtml(item.area) : `<span class="energy-unassigned">未分配</span>`}</td>
@@ -1368,7 +1375,7 @@
             <td>${energyMeasurement(item.reactiveEnergy, 2)}</td>
             <td class="action-cell"><button class="action-link" type="button" data-action="energy-assignment-details" data-id="${escapeHtml(item.id)}">详情</button><button class="action-link" type="button" data-action="assign-energy-row-area" data-id="${escapeHtml(item.id)}">分配区域</button><button class="action-link" type="button" data-action="assign-energy-row-usage" data-id="${escapeHtml(item.id)}">分配用电类型</button></td>
           </tr>`).join("")
-      : `<tr><td colspan="16"><div class="empty-state"><div><strong>没有匹配的数据</strong>请调整筛选条件</div></div></td></tr>`;
+      : `<tr><td colspan="17"><div class="empty-state"><div><strong>没有匹配的数据</strong>请调整筛选条件</div></div></td></tr>`;
 
     return `
       <section class="page device-reference-page energy-reference-page energy-assignment-page">
@@ -1388,9 +1395,9 @@
           </div>
           <div class="table-wrap device-reference-table-wrap energy-assignment-table-wrap">
             <table class="data-table energy-assignment-table">
-              <colgroup><col style="width:52px"><col style="width:90px"><col style="width:210px"><col style="width:72px"><col style="width:180px"><col style="width:126px"><col style="width:96px"><col style="width:96px"><col style="width:126px"><col style="width:116px"><col style="width:120px"><col style="width:104px"><col style="width:100px"><col style="width:122px"><col style="width:132px"><col style="width:280px"></colgroup>
+              <colgroup><col style="width:52px"><col style="width:90px"><col style="width:108px"><col style="width:210px"><col style="width:72px"><col style="width:180px"><col style="width:126px"><col style="width:96px"><col style="width:96px"><col style="width:126px"><col style="width:116px"><col style="width:120px"><col style="width:104px"><col style="width:100px"><col style="width:122px"><col style="width:132px"><col style="width:280px"></colgroup>
               <thead>
-                <tr><th class="checkbox-cell"><input type="checkbox" aria-label="选择当前页全部回路" data-action="select-all-energy-assignment"${allSelected ? " checked" : ""}${partiallySelected ? ` data-indeterminate="true"` : ""}></th><th>设备类型</th><th>设备备注</th><th>相别</th><th>分配区域</th><th>分配用电类型</th><th>${energyAssignmentSortButton("voltage", "电压(V)")}</th><th>${energyAssignmentSortButton("currentAmpere", "电流(A)")}</th><th>${energyAssignmentSortButton("cumulativeEnergy", "累计能耗(kWh)")}</th><th>${energyAssignmentSortButton("activePower", "有功功率(kW)")}</th><th>${energyAssignmentSortButton("reactivePower", "无功功率(kvar)")}</th><th>${energyAssignmentSortButton("powerFactor", "功率因数")}</th><th>${energyAssignmentSortButton("frequency", "频率(Hz)")}</th><th>${energyAssignmentSortButton("activeEnergy", "有功电能(kWh)")}</th><th>${energyAssignmentSortButton("reactiveEnergy", "无功电能(kvarh)")}</th><th class="energy-sticky-action">操作</th></tr>
+                <tr><th class="checkbox-cell"><input type="checkbox" aria-label="选择当前页全部回路" data-action="select-all-energy-assignment"${allSelected ? " checked" : ""}${partiallySelected ? ` data-indeterminate="true"` : ""}></th><th>设备类型</th><th>计量类型</th><th>设备备注</th><th>相别</th><th>分配区域</th><th>分配用电类型</th><th>${energyAssignmentSortButton("voltage", "电压(V)")}</th><th>${energyAssignmentSortButton("currentAmpere", "电流(A)")}</th><th>${energyAssignmentSortButton("cumulativeEnergy", "累计能耗(kWh)")}</th><th>${energyAssignmentSortButton("activePower", "有功功率(kW)")}</th><th>${energyAssignmentSortButton("reactivePower", "无功功率(kvar)")}</th><th>${energyAssignmentSortButton("powerFactor", "功率因数")}</th><th>${energyAssignmentSortButton("frequency", "频率(Hz)")}</th><th>${energyAssignmentSortButton("activeEnergy", "有功电能(kWh)")}</th><th>${energyAssignmentSortButton("reactiveEnergy", "无功电能(kvarh)")}</th><th class="energy-sticky-action">操作</th></tr>
               </thead>
               <tbody>${rows}</tbody>
             </table>
@@ -2140,13 +2147,12 @@
     return `
       <section class="energy-current-card">
         <header>
-          <div><span class="energy-current-status${effective ? "" : " inactive"}">${effective ? "当前生效" : "尚未生效"}</span><h3>${escapeHtml(currentTitle)}</h3><p>${escapeHtml(currentScopeCopy)}</p></div>
+          <div>${detailField.simplified ? `<h3>${escapeHtml(currentTitle)}</h3>` : `<span class="energy-current-status${effective ? "" : " inactive"}">${effective ? "当前生效" : "尚未生效"}</span><h3>${escapeHtml(currentTitle)}</h3><p>${escapeHtml(currentScopeCopy)}</p>`}</div>
           <div class="energy-current-live-metrics"><div><span>电流</span><strong>${currentValue}</strong></div><div><span>电压</span><strong>${voltageValue}</strong></div></div>
           <div class="energy-current-total"><span>${escapeHtml(energyLabel)}</span><strong>${energyValue}</strong><small>${escapeHtml(energyNote)}</small></div>
         </header>
         <div class="energy-current-grid${detailField.simplified ? " simplified" : ""}">
-          ${detailField.simplified ? "" : `<div><span>统计模式</span><strong>${escapeHtml(item.mode)}</strong></div>`}
-          <div><span>${detailField.label}</span><strong>${escapeHtml(detailField.value)}</strong></div>
+          ${detailField.simplified ? "" : `<div><span>统计模式</span><strong>${escapeHtml(item.mode)}</strong></div><div><span>${detailField.label}</span><strong>${escapeHtml(detailField.value)}</strong></div>`}
           <div><span>${detailField.simplified ? "分配区域" : "统计区域"}</span><strong>${escapeHtml(item.statisticsArea || "—")}</strong></div>
           <div><span>${detailField.simplified ? "分配用电类型" : "用电类型"}</span><strong>${escapeHtml(item.usageType || "—")}</strong></div>
           ${detailField.simplified ? "" : `<div class="wide"><span>生效区间</span><strong>${effective ? `${escapeHtml(item.effectiveAt)} 至今` : "—"}</strong></div>`}
@@ -2218,13 +2224,14 @@
     const assignment = `${item.statisticsArea || "—"} · ${item.usageType || "—"}`;
     const effectiveRange = item.effectiveAt && item.effectiveAt !== "—" ? `${item.effectiveAt} 至今` : "尚未生效";
     const analysisScope = item.detailContext === "energy-assignment" && item.meterSystem === "three" ? item.phase : item.meterSystem === "single" ? "单相" : "当前统计项";
+    const showMetricNotes = item.detailContext !== "energy-assignment";
     const metrics = [
-      { label: `${analysisScope}本月用电`, value: `${energyMeasurement(summary.monthEnergy)} kWh`, note: `当前生效归属：${assignment}`, tone: "purple" },
-      { label: `${analysisScope}日均用电`, value: `${energyMeasurement(summary.dailyAverage, 2)} kWh`, note: `生效区间：${effectiveRange}`, tone: "blue" },
+      { label: `${analysisScope}本月用电`, value: `${energyMeasurement(summary.monthEnergy)} kWh`, note: showMetricNotes ? `当前生效归属：${assignment}` : "", tone: "purple" },
+      { label: `${analysisScope}日均用电`, value: `${energyMeasurement(summary.dailyAverage, 2)} kWh`, note: showMetricNotes ? `生效区间：${effectiveRange}` : "", tone: "blue" },
     ];
     return `
       <section class="energy-analysis-section">
-        <div class="energy-metric-grid">${metrics.map((metric) => `<article class="energy-metric-card ${metric.tone}"><i></i><span>${metric.label}</span><strong>${metric.value}</strong><small>${metric.note}</small></article>`).join("")}</div>
+        <div class="energy-metric-grid">${metrics.map((metric) => `<article class="energy-metric-card ${metric.tone}"><i></i><span>${metric.label}</span><strong>${metric.value}</strong>${metric.note ? `<small>${metric.note}</small>` : ""}</article>`).join("")}</div>
         <div class="energy-analysis-layout">
           <article class="energy-analysis-card energy-trend-card">
             <header><div><h4>${escapeHtml(analysisScope)}能耗变化时间轴</h4><p>${rangeCopy[range] ?? "近 30 天"}${escapeHtml(analysisScope)}用电变化，横轴为时间，纵轴为区间用电量（kWh）</p></div><div class="energy-range-switch" role="group" aria-label="能耗趋势时间范围">${["7d", "30d", "12m"].map((value) => `<button type="button" class="${range === value ? "active" : ""}" data-action="energy-detail-range" data-range="${value}" data-id="${escapeHtml(item.id)}">${rangeCopy[value]}</button>`).join("")}</div></header>
@@ -2241,7 +2248,7 @@
     openModal({
       title: "能源统计项详情",
       xlarge: true,
-      body: `<div class="energy-detail-identity${detailField.simplified ? " simplified" : ""}"><div><span>设备备注</span><strong>${escapeHtml(item.deviceRemark)}</strong></div><div><span>设备类型</span><strong>${escapeHtml(item.deviceType)}</strong></div><div><span>${detailField.label}</span><strong>${escapeHtml(detailField.value)}</strong></div></div>${renderCurrentEnergyAssignment(item)}${renderEnergyAnalysis(item)}${renderEnergyMeasurementDetails(item)}`,
+      body: `<div class="energy-detail-identity${detailField.simplified ? " simplified" : ""}"><div><span>设备备注</span><strong>${escapeHtml(item.deviceRemark)}</strong></div><div><span>设备类型</span><strong>${escapeHtml(item.deviceType)}</strong></div>${detailField.simplified ? `<div><span>计量类型</span><strong>${escapeHtml(energyMeterTypeLabel(item))}</strong></div>` : ""}<div><span>${detailField.label}</span><strong>${escapeHtml(detailField.value)}</strong></div></div>${renderCurrentEnergyAssignment(item)}${renderEnergyAnalysis(item)}${renderEnergyMeasurementDetails(item)}`,
       footer: `<button class="button primary" type="button" data-action="close-modal">关闭</button>`,
     });
   }
