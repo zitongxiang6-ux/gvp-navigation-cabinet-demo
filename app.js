@@ -1358,7 +1358,6 @@
       ? pageItems.map((item) => `
           <tr${view.selected.has(item.id) ? ` class="selected-row"` : ""}>
             <td class="checkbox-cell"><input type="checkbox" aria-label="选择${escapeHtml(item.deviceRemark)}${escapeHtml(item.circuitLabel)}" data-action="select-energy-assignment" data-id="${escapeHtml(item.id)}"${view.selected.has(item.id) ? " checked" : ""}></td>
-            <td><span class="energy-device-kind ${item.deviceType === "电表" ? "meter" : "breaker"}">${escapeHtml(item.deviceType)}</span></td>
             <td>${escapeHtml(energyMeterTypeLabel(item))}</td>
             <td><div class="energy-assignment-device"><strong>${escapeHtml(item.deviceRemark)}</strong><span>${escapeHtml(item.circuitLabel)}</span></div></td>
             <td>${escapeHtml(item.phase || "—")}</td>
@@ -1375,7 +1374,7 @@
             <td>${energyMeasurement(item.reactiveEnergy, 2)}</td>
             <td class="action-cell"><button class="action-link" type="button" data-action="energy-assignment-details" data-id="${escapeHtml(item.id)}">详情</button><button class="action-link" type="button" data-action="assign-energy-row-area" data-id="${escapeHtml(item.id)}">分配区域</button><button class="action-link" type="button" data-action="assign-energy-row-usage" data-id="${escapeHtml(item.id)}">分配用电类型</button></td>
           </tr>`).join("")
-      : `<tr><td colspan="17"><div class="empty-state"><div><strong>没有匹配的数据</strong>请调整筛选条件</div></div></td></tr>`;
+      : `<tr><td colspan="16"><div class="empty-state"><div><strong>没有匹配的数据</strong>请调整筛选条件</div></div></td></tr>`;
 
     return `
       <section class="page device-reference-page energy-reference-page energy-assignment-page">
@@ -1395,9 +1394,9 @@
           </div>
           <div class="table-wrap device-reference-table-wrap energy-assignment-table-wrap">
             <table class="data-table energy-assignment-table">
-              <colgroup><col style="width:52px"><col style="width:90px"><col style="width:108px"><col style="width:210px"><col style="width:72px"><col style="width:180px"><col style="width:126px"><col style="width:96px"><col style="width:96px"><col style="width:126px"><col style="width:116px"><col style="width:120px"><col style="width:104px"><col style="width:100px"><col style="width:122px"><col style="width:132px"><col style="width:280px"></colgroup>
+              <colgroup><col style="width:52px"><col style="width:108px"><col style="width:210px"><col style="width:72px"><col style="width:180px"><col style="width:126px"><col style="width:96px"><col style="width:96px"><col style="width:126px"><col style="width:116px"><col style="width:120px"><col style="width:104px"><col style="width:100px"><col style="width:122px"><col style="width:132px"><col style="width:280px"></colgroup>
               <thead>
-                <tr><th class="checkbox-cell"><input type="checkbox" aria-label="选择当前页全部回路" data-action="select-all-energy-assignment"${allSelected ? " checked" : ""}${partiallySelected ? ` data-indeterminate="true"` : ""}></th><th>设备类型</th><th>计量类型</th><th>设备备注</th><th>相别</th><th>分配区域</th><th>分配用电类型</th><th>${energyAssignmentSortButton("voltage", "电压(V)")}</th><th>${energyAssignmentSortButton("currentAmpere", "电流(A)")}</th><th>${energyAssignmentSortButton("cumulativeEnergy", "累计能耗(kWh)")}</th><th>${energyAssignmentSortButton("activePower", "有功功率(kW)")}</th><th>${energyAssignmentSortButton("reactivePower", "无功功率(kvar)")}</th><th>${energyAssignmentSortButton("powerFactor", "功率因数")}</th><th>${energyAssignmentSortButton("frequency", "频率(Hz)")}</th><th>${energyAssignmentSortButton("activeEnergy", "有功电能(kWh)")}</th><th>${energyAssignmentSortButton("reactiveEnergy", "无功电能(kvarh)")}</th><th class="energy-sticky-action">操作</th></tr>
+                <tr><th class="checkbox-cell"><input type="checkbox" aria-label="选择当前页全部回路" data-action="select-all-energy-assignment"${allSelected ? " checked" : ""}${partiallySelected ? ` data-indeterminate="true"` : ""}></th><th>计量类型</th><th>设备备注</th><th>相别</th><th>分配区域</th><th>分配用电类型</th><th>${energyAssignmentSortButton("voltage", "电压(V)")}</th><th>${energyAssignmentSortButton("currentAmpere", "电流(A)")}</th><th>${energyAssignmentSortButton("cumulativeEnergy", "累计能耗(kWh)")}</th><th>${energyAssignmentSortButton("activePower", "有功功率(kW)")}</th><th>${energyAssignmentSortButton("reactivePower", "无功功率(kvar)")}</th><th>${energyAssignmentSortButton("powerFactor", "功率因数")}</th><th>${energyAssignmentSortButton("frequency", "频率(Hz)")}</th><th>${energyAssignmentSortButton("activeEnergy", "有功电能(kWh)")}</th><th>${energyAssignmentSortButton("reactiveEnergy", "无功电能(kvarh)")}</th><th class="energy-sticky-action">操作</th></tr>
               </thead>
               <tbody>${rows}</tbody>
             </table>
@@ -2248,7 +2247,7 @@
     openModal({
       title: "能源统计项详情",
       xlarge: true,
-      body: `<div class="energy-detail-identity${detailField.simplified ? " simplified" : ""}"><div><span>设备备注</span><strong>${escapeHtml(item.deviceRemark)}</strong></div><div><span>设备类型</span><strong>${escapeHtml(item.deviceType)}</strong></div>${detailField.simplified ? `<div><span>计量类型</span><strong>${escapeHtml(energyMeterTypeLabel(item))}</strong></div>` : ""}<div><span>${detailField.label}</span><strong>${escapeHtml(detailField.value)}</strong></div></div>${renderCurrentEnergyAssignment(item)}${renderEnergyAnalysis(item)}${renderEnergyMeasurementDetails(item)}`,
+      body: `<div class="energy-detail-identity${detailField.simplified ? " simplified" : ""}"><div><span>设备备注</span><strong>${escapeHtml(item.deviceRemark)}</strong></div>${detailField.simplified ? `<div><span>计量类型</span><strong>${escapeHtml(energyMeterTypeLabel(item))}</strong></div>` : `<div><span>设备类型</span><strong>${escapeHtml(item.deviceType)}</strong></div>`}<div><span>${detailField.label}</span><strong>${escapeHtml(detailField.value)}</strong></div></div>${renderCurrentEnergyAssignment(item)}${renderEnergyAnalysis(item)}${renderEnergyMeasurementDetails(item)}`,
       footer: `<button class="button primary" type="button" data-action="close-modal">关闭</button>`,
     });
   }
@@ -2366,7 +2365,7 @@
           <li><strong>待确认：</strong>外部同步协议、主键、频率、失败和延迟处理，以及停用或删除关系后的显示和恢复规则。</li>
           <li><strong>已确认：</strong>楼栋、房间、配电箱和设备 IP 信息完整时，离线消息按“[楼栋 / 房间 / 配电箱] 原消息内容 IP地址：xxx.xxx.xxx.xxx”显示；任一项缺失时直接沿用原消息，不追加定位或 IP，不显示“未配置”且不保留空层级。</li>
           <li><strong>V3.2.0 能源统计分类：</strong>负责人为紫彤；添加向导共两步，先选择电表或空开，再设置区域与用电类型。电表在第二步同时选择整表或分相，空开不显示统计方式。</li>
-          <li><strong>当前能源统计分类：</strong>原【能源分类分配（简化版）】页面改名为【能源统计分类】并作为当前可见入口；默认加载全部电表和空开回路，电表拆分为三个回路、空开显示一个回路，仅保留筛选区域、设备备注和用电类型即时筛选，列表补充电流、电压和累计能耗，并支持单选、多选后分别分配区域或用电类型。</li>
+          <li><strong>当前能源统计分类：</strong>原【能源分类分配（简化版）】页面改名为【能源统计分类】并作为当前可见入口；默认加载 35 条 Mock 回路，三相电表按 A/B/C 三行、单相电表与空开各一行，第一页按 3 行三相、3 行单相、4 行空开均衡展示。列表删除设备类型，以计量类型区分三类设备；仅保留筛选区域、设备备注和用电类型即时筛选，并支持单选、多选后分别分配区域或用电类型。</li>
           <li><strong>原能源统计分类：</strong>主导航入口暂时隐藏，但页面、路由和全部实现继续保留，可通过 <code>#energy-classification</code> 直接访问，后续需要时可恢复入口。</li>
           <li><strong>已确认生命周期：</strong>分类从保存时间起生效，不回算历史；统计项不物理删除，只允许停用；统计区域允许与设备导航区域不同。</li>
           <li><strong>分析页展示：</strong>分类过多时默认展示能耗较高的前若干项；前台固定数量仍待设计确认。</li>
