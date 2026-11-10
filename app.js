@@ -2216,10 +2216,11 @@
     const assignment = `${item.statisticsArea || "—"} · ${item.usageType || "—"}`;
     const effectiveRange = item.effectiveAt && item.effectiveAt !== "—" ? `${item.effectiveAt} 至今` : "尚未生效";
     const analysisScope = item.detailContext === "energy-assignment" && item.meterSystem === "three" ? item.phase : item.meterSystem === "single" ? "单相" : "当前统计项";
+    const metricScope = item.detailContext === "energy-assignment" && item.meterSystem === "circuit" ? "" : analysisScope;
     const showMetricNotes = item.detailContext !== "energy-assignment";
     const metrics = [
-      { label: `${analysisScope}本月用电`, value: `${energyMeasurement(summary.monthEnergy)} kWh`, note: showMetricNotes ? `当前生效归属：${assignment}` : "", tone: "purple" },
-      { label: `${analysisScope}日均用电`, value: `${energyMeasurement(summary.dailyAverage, 2)} kWh`, note: showMetricNotes ? `生效区间：${effectiveRange}` : "", tone: "blue" },
+      { label: `${metricScope}本月用电`, value: `${energyMeasurement(summary.monthEnergy)} kWh`, note: showMetricNotes ? `当前生效归属：${assignment}` : "", tone: "purple" },
+      { label: `${metricScope}日均用电`, value: `${energyMeasurement(summary.dailyAverage, 2)} kWh`, note: showMetricNotes ? `生效区间：${effectiveRange}` : "", tone: "blue" },
     ];
     return `
       <section class="energy-analysis-section">

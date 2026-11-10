@@ -5,7 +5,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $demoRoot = (Resolve-Path -LiteralPath $PSScriptRoot).Path
-$demoBuild = '20261110-energy-metering-note-removed-v41'
+$demoBuild = '20261110-energy-breaker-metric-labels-v42'
 $demoUrl = "http://127.0.0.1:$Port/?v=$demoBuild#overview"
 
 function Test-DemoAvailable {
