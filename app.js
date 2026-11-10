@@ -2215,8 +2215,14 @@
     const rangeCopy = { "7d": "近 7 天", "30d": "近 30 天", "12m": "近 12 个月" };
     const assignment = `${item.statisticsArea || "—"} · ${item.usageType || "—"}`;
     const effectiveRange = item.effectiveAt && item.effectiveAt !== "—" ? `${item.effectiveAt} 至今` : "尚未生效";
+    const isCurrentAssignment = item.detailContext === "energy-assignment";
     const analysisScope = item.detailContext === "energy-assignment" && item.meterSystem === "three" ? item.phase : item.meterSystem === "single" ? "单相" : "当前统计项";
-    const metricScope = item.detailContext === "energy-assignment" && item.meterSystem === "circuit" ? "" : analysisScope;
+    const metricScope = isCurrentAssignment && item.meterSystem !== "three" ? "" : analysisScope;
+    const trendTitle = isCurrentAssignment && item.meterSystem === "circuit"
+      ? "能耗编号时间轴"
+      : isCurrentAssignment && item.meterSystem === "single"
+        ? "能耗变化时间轴"
+        : `${analysisScope}能耗变化时间轴`;
     const showMetricNotes = item.detailContext !== "energy-assignment";
     const metrics = [
       { label: `${metricScope}本月用电`, value: `${energyMeasurement(summary.monthEnergy)} kWh`, note: showMetricNotes ? `当前生效归属：${assignment}` : "", tone: "purple" },
@@ -2227,7 +2233,7 @@
         <div class="energy-metric-grid">${metrics.map((metric) => `<article class="energy-metric-card ${metric.tone}"><i></i><span>${metric.label}</span><strong>${metric.value}</strong>${metric.note ? `<small>${metric.note}</small>` : ""}</article>`).join("")}</div>
         <div class="energy-analysis-layout">
           <article class="energy-analysis-card energy-trend-card">
-            <header><div><h4>${escapeHtml(analysisScope)}能耗变化时间轴</h4><p>${rangeCopy[range] ?? "近 30 天"}${escapeHtml(analysisScope)}用电变化，横轴为时间，纵轴为区间用电量（kWh）</p></div><div class="energy-range-switch" role="group" aria-label="能耗趋势时间范围">${["7d", "30d", "12m"].map((value) => `<button type="button" class="${range === value ? "active" : ""}" data-action="energy-detail-range" data-range="${value}" data-id="${escapeHtml(item.id)}">${rangeCopy[value]}</button>`).join("")}</div></header>
+            <header><div><h4>${escapeHtml(trendTitle)}</h4><p>${rangeCopy[range] ?? "近 30 天"}${escapeHtml(analysisScope)}用电变化，横轴为时间，纵轴为区间用电量（kWh）</p></div><div class="energy-range-switch" role="group" aria-label="能耗趋势时间范围">${["7d", "30d", "12m"].map((value) => `<button type="button" class="${range === value ? "active" : ""}" data-action="energy-detail-range" data-range="${value}" data-id="${escapeHtml(item.id)}">${rangeCopy[value]}</button>`).join("")}</div></header>
             <div class="energy-trend-chart">${energyTrendSvg(points)}</div>
           </article>
         </div>
